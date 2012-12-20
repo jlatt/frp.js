@@ -3,6 +3,8 @@ Inspiration comes from:
 - [Elm](http://elm-lang.org/)
 - [Flapjax](http://www.flapjax-lang.org/)
 
+Contributors, pull requests, and issues welcome!
+
 ## Why not Elm?
 Elm is really cool, but it's Haskell that compiles to Javascript. Transpiling gives me the willies.
 
