@@ -10,6 +10,7 @@
 
     // represent event streams
 
+    // Create a new stream.
     function EventStream(receiveValue) {
         this.id = _.uniqueId();
         this.onEmit = $.Callbacks('memory unique');
@@ -151,6 +152,9 @@
         }).receiveFrom(this);
     };
 
+    // independent constructors
+
+    // Create a new stream.
     EventStream.create = function(receiveValue) {
         return new EventStream(receiveValue);
     };
