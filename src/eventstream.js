@@ -4,17 +4,17 @@
 
     function noop() {};
 
-    function returnThis = function() {
+    function returnThis() {
         return this;
     };
 
     // represent event streams
 
-    function EventStream(onValue) {
+    function EventStream(receiveValue) {
         this.id = _.uniqueId();
         this.onEmit = $.Callbacks('memory unique');
         this.onCancel = $.Callbacks('memory once unique');
-        this.onValue = _.bind(onValue, this);
+        this.receiveValue = _.bind(receiveValue, this);
     };
 
     // Do any cleanup required after statful initialization.
@@ -27,13 +27,13 @@
 
     // Send events from this stream to another stream.
     EventStream.prototype.sendTo = function(es) {
-        this.onEmit.add(es.onValue);
+        this.onEmit.add(es.receiveValue);
         return this;
     };;
 
     // Stop sending events from this stream to another stream.
     EventStream.prototype.unsendTo = function(es) {
-        this.onEmit.add(es.onValue);
+        this.onEmit.add(es.receiveValue);
         return this;
     };
 
@@ -125,34 +125,34 @@
 
     // Emit incoming events until `takeWhile` returns falsy.
     EventStream.prototype.takeWhile = function(takeFunc) {
-        var onValue = function() {
+        var receiveValue = function() {
             if (takeFunc.apply(this, arguments)) {
                 this.emitArray(arguments);
             } else {
-                onValue = noop;
+                receiveValue = noop;
             }
         };
 
         return new EventStream(function() {
-            onValue.apply(this, arguments);
+            receiveValue.apply(this, arguments);
         }).receiveFrom(this);
     };
 
     // Don't emit events until `dropFunc` return falsy.
     EventStream.prototype.dropWhile = function(dropFunc) {
-        var onValue = function() {
+        var receiveValue = function() {
             if (!dropFunc.apply(this, arguments)) {
-                onValue = this.emitArray;
+                receiveValue = this.emitArray;
             }
         };
 
         return new EventStream(function() {
-            onValue.apply(this, arguments);
+            receiveValue.apply(this, arguments);
         }).receiveFrom(this);
     };
 
-    EventStream.create = function(onValue) {
-        return new EventStream(onValue);
+    EventStream.create = function(receiveValue) {
+        return new EventStream(receiveValue);
     };
 
     // This stream does not emit events.
