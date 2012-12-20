@@ -2,7 +2,7 @@
 
 Inspiration comes from:
 - [Elm](http://elm-lang.org/)
-- [Flapjax](https://github.com/brownplt/flapjax)
+- [Flapjax](http://www.flapjax-lang.org/)
 
 ## Why not Elm?
 Elm is really cool, but it's Haskell that compiles to Javascript. Transpiling gives me the willies.
