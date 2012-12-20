@@ -72,8 +72,8 @@
 
     // Map each event value with `mapFunc`.
     EventStream.prototype.map = function(mapFunc) {
-        return EventStream.create(function(value) {
-            this.emit(mapFunc.call(this, value));
+        return EventStream.create(function() {
+            this.emit(mapFunc.apply(this, arguments));
         });
     };
 
