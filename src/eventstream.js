@@ -105,7 +105,7 @@
 
     // Emit the most recent event `bounce` ms after the first last event arrives.
     EventStream.prototype.debounce = function(bounce) {
-        return new EventStream(_.debounce(this.emitArray, bounce)).receiveFrom(this);
+        return new EventStream(_.debounce(this.emit, bounce)).receiveFrom(this);
     };
 
     // Delay each received event by `delay` ms.
@@ -121,34 +121,26 @@
 
     // Emit an event no more often than every `throttle` ms.
     EventStream.prototype.throttle = function(throttle) {
-        return new EventStream(_.throttle(this.emitArray, throttle)).receiveFrom(es);
+        return new EventStream(_.throttle(this.emit, throttle)).receiveFrom(es);
     };
 
     // Emit incoming events until `takeWhile` returns falsy.
     EventStream.prototype.takeWhile = function(takeFunc) {
-        var receiveValue = function() {
+        return new EventStream(function() {
             if (takeFunc.apply(this, arguments)) {
                 this.emitArray(arguments);
             } else {
-                receiveValue = noop;
+                this.receiveValue = noop;
             }
-        };
-
-        return new EventStream(function() {
-            receiveValue.apply(this, arguments);
         }).receiveFrom(this);
     };
 
     // Don't emit events until `dropFunc` return falsy.
     EventStream.prototype.dropWhile = function(dropFunc) {
-        var receiveValue = function() {
-            if (!dropFunc.apply(this, arguments)) {
-                receiveValue = this.emitArray;
-            }
-        };
-
         return new EventStream(function() {
-            receiveValue.apply(this, arguments);
+            if (!dropFunc.apply(this, arguments)) {
+                this.receiveValue = _.bind(this.emit, this);
+            }
         }).receiveFrom(this);
     };
 
