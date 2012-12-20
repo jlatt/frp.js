@@ -20,7 +20,7 @@
 
     // Do any cleanup required after statful initialization.
     EventStream.prototype.cancel = function() {
-        this.onCancel.fireWith(this).clear();
+        this.onCancel.fireWith(this).disable();
         return this;
     };
 
