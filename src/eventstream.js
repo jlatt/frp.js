@@ -113,7 +113,7 @@
     // Delay each received event by `delay` ms. This function does not guarantee order, but relies
     // on the JS internal scheduler.
     EventStream.prototype.delay = function(delay) {
-        var es = EventStream.create(function() {
+        return EventStream.create(function() {
             var delayHandle;
             function clear() {
                 clearTimeout(delayHandle);
@@ -123,9 +123,7 @@
                 es.emitArray(args);
             }, delay, arguments);
             this.onCancel.add(clear);
-        })
-        this.sendTo(es);
-        return es;
+        }).receiveFrom(this);
     };
 
     // Emit an event no more often than every `throttle` ms.
