@@ -19,10 +19,10 @@
     };
 
     // Do any cleanup required after statful initialization.
-    EventStream.prototype.cancel = _.once(function() {
-        this.onCancel.fireWith(this);
+    EventStream.prototype.cancel = function() {
+        this.onCancel.fireWith(this).clear();
         return this;
-    });
+    };
 
     // connecting streams
 
@@ -49,6 +49,7 @@
     };
 
     // event emission
+    // NB: These functions should be called from event streaming and not external code.
 
     // Emit a func-call like list of values to callbacks. Usually, this is one value.
     EventStream.prototype.emit = function(/*value, ...*/) {
@@ -71,66 +72,70 @@
 
     // Map each event value with `mapFunc`.
     EventStream.prototype.map = function(mapFunc) {
-        return new EventStream(function(value) {
+        return EventStream.create(function(value) {
             this.emit(mapFunc.call(this, value));
         });
     };
 
     // Map all arguments through `mapFunc`.
     EventStream.prototype.mapArray = function(mapFunc) {
-        return new EventStream(function() {
+        return EventStream.create(function() {
             this.emitArray(mapFunc.apply(this, arguments));
         });
     };
 
     // Only emit events when `filterFunc` returns a truthy value.
     EventStream.prototype.filter = function(filterFunc) {
-        return new EventStream(function() {
+        return EventStream.create(function() {
             if (filterFunc.apply(this, arguments)) {
                 this.emitArray(arguments);
             }
         });
     };
 
-    // Emit events from the value of `foldFunc`, which has parameters of the current and previous
-    // event values.
+    // Emit events from the value of `foldFunc`.
+    // - foldFunc:function(value:Value, lastValue:Value):Value
+    // - initialValue:Value
     EventStream.prototype.fold = function(foldFunc, initialValue) {
-        var es = new EventStream(function(value) {
-            this.emit(foldFunc.call(this, value, this.last));
+        var es = EventStream.create(function(value) {
+            this.emit(foldFunc.call(this, value, this.lastValue));
             this.last = value;
         });
-        es.last = initialValue;
+        es.lastValue = initialValue;
         return es;
     };
 
     // Emit the most recent event `bounce` ms after the first last event arrives.
     EventStream.prototype.debounce = function(bounce) {
-        return new EventStream(_.debounce(this.emit, bounce)).receiveFrom(this);
+        return EventStream.create(_.debounce(this.emit, bounce)).receiveFrom(this);
     };
 
-    // Delay each received event by `delay` ms.
+    // Delay each received event by `delay` ms. This function does not guarantee order, but relies
+    // on the JS internal scheduler.
     EventStream.prototype.delay = function(delay) {
-        var emitArray;
-        var handle;
-        var es = new EventStream(function() {
-            handle = _.delay(emitArray, delay, arguments);
+        var es = EventStream.create(function() {
+            var delayHandle;
+            function clear() {
+                clearTimeout(delayHandle);
+            }
+            delayHandle = _.delay(function(args) {
+                es.onCancel.remove(clear);
+                es.emitArray(args);
+            }, delay, arguments);
+            this.onCancel.add(clear);
         })
-        emitArray = _.bind(es.emitArray, es);
-        es.onCancel.add(function() {
-            clearTimeout(handle);
-        });
         this.sendTo(es);
         return es;
     };
 
     // Emit an event no more often than every `throttle` ms.
     EventStream.prototype.throttle = function(throttle) {
-        return new EventStream(_.throttle(this.emit, throttle)).receiveFrom(es);
+        return EventStream.create(_.throttle(this.emit, throttle)).receiveFrom(es);
     };
 
     // Emit incoming events until `takeWhile` returns falsy.
     EventStream.prototype.takeWhile = function(takeFunc) {
-        return new EventStream(function() {
+        return EventStream.create(function() {
             if (takeFunc.apply(this, arguments)) {
                 this.emitArray(arguments);
             } else {
@@ -141,7 +146,7 @@
 
     // Don't emit events until `dropFunc` return falsy.
     EventStream.prototype.dropWhile = function(dropFunc) {
-        return new EventStream(function() {
+        return EventStream.create(function() {
             if (!dropFunc.apply(this, arguments)) {
                 this.receiveValue = _.bind(this.emit, this);
             }
@@ -152,25 +157,25 @@
 
     // Create a new stream.
     EventStream.create = function(receiveValue) {
-        return new EventStream(receiveValue);
+        return EventStream.create(receiveValue);
     };
 
     // This stream does not emit events.
     EventStream.zero = function() {
-        var es = new EventStream(noop);
+        var es = EventStream.create(noop);
         es.emit = returnThis;
         return es;
     };
 
     // This stream emits one event with specified values(s).
     EventStream.one = function(/*value, ...*/) {
-        return new EventStream(noop).emitArray(arguments);
+        return EventStream.create(noop).emitArray(arguments);
     };
 
     // Emit constant value(s), and the same value on every trigger.
     EventStream.constant = function(/*value, ...*/) {
         var values = arguments;
-        return new EventStream(function() {
+        return EventStream.create(function() {
             this.emitArray(values);
         }).emitArray(values);
     };
@@ -202,20 +207,21 @@
 
     // Trigger events from calling `valueFunc` every `interval` ms.
     EventStream.interval = function(interval, valueFunc) {
-        var es = new EventStream(noop);
-        var onInterval = _.bind(function() {
-            this.emit(valueFunc.call(this));
-        }, this);
-        var handle = setInterval(onInterval, interval);
+        var es = EventStream.create(noop);
+
+        var handle = setInterval(function() {
+            es.emit(valueFunc.call(es));
+        },  interval);
         es.onCancel.add(function() {
             clearInterval(handle);
         });
+
         return es;
     };
 
     // Trigger via jquery events.
     EventStream.$ = function(source/*, event, [selector]*/) {
-        var es = new EventStream();
+        var es = EventStream.create(noop);
 
         // Take no more than two arguments after the first.
         var args = Array.prototype.slice.call(arguments, 1).slice(0, 2);
@@ -234,13 +240,15 @@
 
     // Trigger via google maps events.
     EventStream.gmap = function(source, event) {
-        var es = new EventStream();
+        var es = EventStream.create(noop);
+
         var listener = google.maps.addListener(source, event, function() {
             es.emitArray(arguments);
         });
         es.onCancel.add(function() {
             google.maps.removeListener(listener);
         });
+
         return es;
     };
 
