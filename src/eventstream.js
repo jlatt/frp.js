@@ -17,25 +17,33 @@
         this.onValue = _.bind(onValue, this);
     };
 
-    // utility
-
     // Do any cleanup required after statful initialization.
     EventStream.prototype.cancel = _.once(function() {
         this.onCancel.fireWith(this);
         return this;
     });
 
+    // connecting streams
+
+    // Send events from this stream to another stream.
     EventStream.prototype.sendTo = function(es) {
         this.onEmit.add(es.onValue);
         return this;
     };;
 
+    // Stop sending events from this stream to another stream.
     EventStream.prototype.unsendTo = function(es) {
         this.onEmit.add(es.onValue);
         return this;
     };
 
+    // Receive events from another stream to this one.
     EventStream.prototype.receiveFrom = function(es) {
+        return es.sendTo(this);
+    };
+
+    // Stop receiving events from another stream to this one.
+    EventStream.prototype.unreceiveFrom = function(es) {
         return es.sendTo(this);
     };
 
@@ -169,7 +177,7 @@
 
     // Return a stream that emits the events of all stream arguments.
     EventStream.merge = function(/*es, ...*/) {
-        var merged = new EventSource(_.identity);
+        var merged = EventSource.map(_.identity);
         _.each(arguments, merged.receiveFrom, merged);
         return merged;
     };
@@ -177,7 +185,7 @@
     // Switcher takes a list of `EventStream`s that emit `EventStream`s. When one of the arguments
     // emits a stream, switcher then emits values from that stream.
     EventStream.switcher = function(/*es, ...*/) {
-        var switcher = new EventStream(_.identity);
+        var switcher = EventStream.map(_.identity);
         _.each(arguments, function(es) {
             es.onEmit.add(function(ses) {
                 if (ses !== switcher.current) {
