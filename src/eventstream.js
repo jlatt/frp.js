@@ -34,7 +34,7 @@
 
     // Stop sending events from this stream to another stream.
     EventStream.prototype.unsendTo = function(es) {
-        this.onEmit.add(es.receiveValue);
+        this.onEmit.remove(es.receiveValue);
         return this;
     };
 
@@ -45,7 +45,7 @@
 
     // Stop receiving events from another stream to this one.
     EventStream.prototype.unreceiveFrom = function(es) {
-        return es.sendTo(this);
+        return es.unsendTo(this);
     };
 
     // event emission
