@@ -111,10 +111,14 @@
     // Delay each received event by `delay` ms.
     EventStream.prototype.delay = function(delay) {
         var emitArray;
+        var handle;
         var es = new EventStream(function() {
-            _.delay(emitArray, delay, arguments);
+            handle = _.delay(emitArray, delay, arguments);
         })
         emitArray = _.bind(es.emitArray, es);
+        es.onCancel.add(function() {
+            clearTimeout(handle);
+        });
         this.sendTo(es);
         return es;
     };
