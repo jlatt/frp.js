@@ -1,5 +1,4 @@
 # Functional Reactive Programming for Javascript
-
 Inspiration comes from:
 - [Elm](http://elm-lang.org/)
 - [Flapjax](http://www.flapjax-lang.org/)
@@ -12,5 +11,5 @@ Flapjax is also cool, but it's self-contained and looks like it was written by H
 
 ## My Goals
 - Make use of [underscore.js](http://underscorejs.org/) to avoid reinventing common functions.
-- Bind to the dom with [jQuery](http://jquery.com/)
-- Provide utilities for binding to [Google Maps](https://developers.google.com/maps/documentation/javascript/reference)
+- Bind to the dom with [jQuery](http://jquery.com/).
+- Provide utilities for binding to [Google Maps](https://developers.google.com/maps/documentation/javascript/reference).
