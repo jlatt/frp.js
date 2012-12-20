@@ -1,27 +1,42 @@
 (function(frp) {
+
+    // utility functions
+
+    function noop() {};
+
+    function returnThis = function() {
+        return this;
+    };
+
+    // represent event streams
+
     function EventStream(onValue) {
+        this.id = _.uniqueId();
         this.onEmit = $.Callbacks('memory unique');
         this.onCancel = $.Callbacks('memory once unique');
-
         this.onValue = _.bind(onValue, this);
     };
 
     // utility
 
     // Do any cleanup required after statful initialization.
-    EventStream.prototype.cancel = function() {
+    EventStream.prototype.cancel = _.once(function() {
         this.onCancel.fireWith(this);
         return this;
-    };
+    });
 
     EventStream.prototype.sendTo = function(es) {
-        this.onEmit.add(es.onEvent);
+        this.onEmit.add(es.onValue);
+        return this;
+    };;
+
+    EventStream.prototype.unsendTo = function(es) {
+        this.onEmit.add(es.onValue);
         return this;
     };
 
     EventStream.prototype.receiveFrom = function(es) {
-        es.onEmit.add(this.onValue);
-        return this;
+        return es.sendTo(this);
     };
 
     // event emission
@@ -37,67 +52,125 @@
         return this;
     };
 
-    // new event streams
-
-    EventStream.prototype.map = function(mapFunc) {
-        return new EventStream(function(value) {
-            this.emit(mapFunc.call(this, value));
-        });
-    };
-
-    EventStream.prototype.mapArray = function(mapFunc) {
-        return new EventStream(function() {
-            this.emit.apply(this, mapFunc.apply(this, arguments));
-        });
-    };
-
-    EventStream.prototype.filter = function(filterFunc) {
-        return new EventStream(function() {
-            if (filterFunc.apply(this, arguments)) {
-                this.emit.apply(this, arguments);
-            }
-        });
-    };
+    // constructors
 
     // see `EventStream.merge`.
     EventStream.prototype.merge = function(/*es, ...*/) {
         return EventSource.merge([this].concat(arguments));
     };
 
-    // constructors
+
+    // Map each event value with `mapFunc`.
+    EventStream.prototype.map = function(mapFunc) {
+        return new EventStream(function(value) {
+            this.emit(mapFunc.call(this, value));
+        });
+    };
+
+    // Map all arguments through `mapFunc`.
+    EventStream.prototype.mapArray = function(mapFunc) {
+        return new EventStream(function() {
+            this.emitArray(mapFunc.apply(this, arguments));
+        });
+    };
+
+    // Only emit events when `filterFunc` returns a truthy value.
+    EventStream.prototype.filter = function(filterFunc) {
+        return new EventStream(function() {
+            if (filterFunc.apply(this, arguments)) {
+                this.emitArray(arguments);
+            }
+        });
+    };
+
+    // Emit events from the value of `foldFunc`, which has parameters of the current and previous
+    // event values.
+    EventStream.prototype.fold = function(foldFunc, initialValue) {
+        var es = new EventStream(function(value) {
+            this.emit(foldFunc.call(this, value, this.last));
+            this.last = value;
+        });
+        es.last = initialValue;
+        return es;
+    };
+
+    // Emit the most recent event `bounce` ms after the first last event arrives.
+    EventStream.prototype.debounce = function(bounce) {
+        return new EventStream(_.debounce(this.emitArray, bounce)).receiveFrom(this);
+    };
+
+    // Delay each received event by `delay` ms.
+    EventStream.prototype.delay = function(delay) {
+        var emitArray;
+        var es = new EventStream(function() {
+            _.delay(emitArray, delay, arguments);
+        })
+        emitArray = _.bind(es.emitArray, es);
+        this.sendTo(es);
+        return es;
+    };
+
+    // Emit an event no more often than every `throttle` ms.
+    EventStream.prototype.throttle = function(throttle) {
+        return new EventStream(_.throttle(this.emitArray, throttle)).receiveFrom(es);
+    };
+
+    // Emit incoming events until `takeWhile` returns falsy.
+    EventStream.prototype.takeWhile = function(takeFunc) {
+        var onValue = function() {
+            if (takeFunc.apply(this, arguments)) {
+                this.emitArray(arguments);
+            } else {
+                onValue = noop;
+            }
+        };
+
+        return new EventStream(function() {
+            onValue.apply(this, arguments);
+        }).receiveFrom(this);
+    };
+
+    // Don't emit events until `dropFunc` return falsy.
+    EventStream.prototype.dropWhile = function(dropFunc) {
+        var onValue = function() {
+            if (!dropFunc.apply(this, arguments)) {
+                onValue = this.emitArray;
+            }
+        };
+
+        return new EventStream(function() {
+            onValue.apply(this, arguments);
+        }).receiveFrom(this);
+    };
+
+    EventStream.create = function(onValue) {
+        return new EventStream(onValue);
+    };
 
     // This stream does not emit events.
     EventStream.zero = function() {
-        var es = new EventStream(function() {});
-        es.emit = function() {
-            return this;
-        };
+        var es = new EventStream(noop);
+        es.emit = returnThis;
         return es;
     };
 
     // This stream emits one event with specified values(s).
     EventStream.one = function(/*value, ...*/) {
-        var es = new EventStream(function() {});
-        es.emitArray(arguments);
-        return es;
+        return new EventStream(noop).emitArray(arguments);
     };
 
     // Emit constant value(s), and the same value on every trigger.
     EventStream.constant = function(/*value, ...*/) {
         var values = arguments;
-        var es = new EventStream(function() {
+        return new EventStream(function() {
             this.emitArray(values);
-        });
-        es.emitArray(values);
-        return es;
+        }).emitArray(values);
     };
 
     // Return a stream that emits the events of all stream arguments.
-    EventStream.merge(/*es, ...*/) {
+    EventStream.merge = function(/*es, ...*/) {
         var merged = new EventSource(_.identity);
-        _.each(arguments, function(es) {
-            es.sendTo(merged);
-        });
+        _.each(arguments, merged.receiveFrom, merged);
         return merged;
     };
 
@@ -106,42 +179,48 @@
     EventStream.switcher = function(/*es, ...*/) {
         var switcher = new EventStream(_.identity);
         _.each(arguments, function(es) {
-            es.onEmit.add(function(es) {
-                if (switcher.current) {
-                    switcher.current.onEmit.remove(switcher.current);
+            es.onEmit.add(function(ses) {
+                if (ses !== switcher.current) {
+                    if (switcher.current) {
+                        switcher.current.unsendTo(switcher);
+                    }
+                    switcher.current = ses;
+                    ses.sendTo(switcher);
                 }
-                switcher.current = es;
-                es.sendTo(switcher);
             });
         });
         return switcher;
     };
 
-    // Emit the most recent event no more than every `bounce` ms.
-    EventStream.debounce = function(es, bounce) {
-        return new EventStream(_.debounce(this.emitArray, bounce));
-    };
-
-    // Delay each received event by `delay` ms.
-    EventStream.delay = function(es, delay) {
-        return new EventStream(function() {
-            _.delay(this.emitArray, delay, arguments);
+    // Trigger events from calling `valueFunc` every `interval` ms.
+    EventStream.interval = function(interval, valueFunc) {
+        var es = new EventStream(noop);
+        var onInterval = _.bind(function() {
+            this.emit(valueFunc.call(this));
+        }, this);
+        var handle = setInterval(onInterval, interval);
+        es.onCancel.add(function() {
+            clearInterval(handle);
         });
+        return es;
     };
 
     // Trigger via jquery events.
     EventStream.$ = function(source/*, event, [selector]*/) {
         var es = new EventStream();
+
         // Take no more than two arguments after the first.
         var args = Array.prototype.slice.call(arguments, 1).slice(0, 2);
         args.push(function(e) {
             es.emit(e);
         });
-        var $source = $(source);
-        $source.on.apply($source, args);
+
+        this.$source = $(source);
+        this.$source.on.apply(this.$source, args);
         es.onCancel.add(function() {
-            $source.off.apply($source, args);
+            this.$source.off.apply(this.$source, args);
         });
+
         return es;
     };
 
