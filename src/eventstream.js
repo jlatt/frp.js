@@ -12,7 +12,7 @@
 
     // Create a new stream.
     function EventStream(receiveValue) {
-        this.id = _.uniqueId();
+        this.id = _.uniqueId('EventStream:');
         this.onEmit = $.Callbacks('memory unique');
         this.onCancel = $.Callbacks('memory once unique');
         this.receiveValue = _.bind(receiveValue, this);
@@ -20,7 +20,7 @@
 
     // Do any cleanup required after statful initialization.
     EventStream.prototype.cancel = function() {
-        this.onCancel.fireWith(this).disable();
+        this.onCancel.fireWith(this, [this]).disable();
         return this;
     };
 
@@ -30,7 +30,7 @@
     EventStream.prototype.sendTo = function(es) {
         this.onEmit.add(es.receiveValue);
         return this;
-    };;
+    };
 
     // Stop sending events from this stream to another stream.
     EventStream.prototype.unsendTo = function(es) {
@@ -110,8 +110,8 @@
         return EventStream.create(_.debounce(this.emit, bounce)).receiveFrom(this);
     };
 
-    // Delay each received event by `delay` ms. This function does not guarantee order, but relies
-    // on the JS internal scheduler.
+    // Delay each received event by `delay` ms. This function does not guarantee
+    // order, but relies on the JS internal scheduler.
     EventStream.prototype.delay = function(delay) {
         return EventStream.create(function() {
             var delayHandle;
@@ -158,10 +158,15 @@
         return EventStream.create(receiveValue);
     };
 
+    // Create a stream that replays whatever it receives.
+    EventStream.identity = function() {
+        return EventStream.create(EventStream.prototype.emitArray);
+    };
+
     // This stream does not emit events.
     EventStream.zero = function() {
         var es = EventStream.create(noop);
-        es.emit = returnThis;
+        es.emitArray = returnThis;
         return es;
     };
 
@@ -185,8 +190,9 @@
         return merged;
     };
 
-    // Switcher takes a list of `EventStream`s that emit `EventStream`s. When one of the arguments
-    // emits a stream, switcher then emits values from that stream.
+    // Switcher takes a list of `EventStream`s that emit `EventStream`s. When
+    // one of the arguments emits a stream, switcher then emits values from that
+    // stream.
     EventStream.switcher = function(/*es, ...*/) {
         var switcher = EventStream.map(_.identity);
         _.each(arguments, function(es) {
@@ -221,8 +227,7 @@
     EventStream.$ = function(source/*, event, [selector]*/) {
         var es = EventStream.create(noop);
 
-        // Take no more than two arguments after the first.
-        var args = Array.prototype.slice.call(arguments, 1).slice(0, 2);
+        var args = Array.prototype.slice.call(arguments, 1, 3);
         args.push(function(e) {
             es.emit(e);
         });
