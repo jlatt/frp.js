@@ -156,6 +156,7 @@
     //
 
     // Emit an event once `wait` ms after the last incoming event.
+    //
     // wait := Number
     // return := Stream
     Stream.prototype.debounce = function(wait) {
@@ -165,6 +166,7 @@
     };
 
     // Emit an event no more than every `wait` ms.
+    //
     // wait := Number
     // return := Stream
     Stream.prototype.throttle = function(wait) {
@@ -175,6 +177,7 @@
 
     // Delay all incoming events by `wait` ms. NB: This uses `setTimeout()` and
     // is subject to the JS scheduler for order.
+    //
     // wait := Number
     // return := Stream
     Stream.prototype.delay = function(wait) {
@@ -200,6 +203,7 @@
     //
 
     // Turn all incoming event objects into promises.
+    //
     // return := Stream
     Stream.prototype.promise = function() {
         return this.map(function() {
