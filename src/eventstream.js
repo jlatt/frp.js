@@ -8,14 +8,39 @@
         return this;
     };
 
+    function create() {
+        var instance = new this();
+        instance.initialize.apply(instance, arguments);
+        return instance;
+    };
+
+    function inherit(Cons, ProtoCons) {
+        Cons.prototype = new ProtoCons();
+        Cons.prototype.constructor = Cons;
+        Cons.create = create;
+        return Cons;
+    };
+
+
     // represent event streams
 
     // Create a new stream.
-    function EventStream(receiveValue) {
+    function EventStream() {};
+    EventStream.create = create;
+
+    EventStream.prototype.initialize = function() {
         this.id = _.uniqueId('EventStream:');
         this.onEmit = $.Callbacks('memory unique');
         this.onCancel = $.Callbacks('memory once unique');
-        this.receiveValue = _.bind(receiveValue, this);
+        _.bindAll(this, 'receiveValue', 'emit', 'emitArray');
+        return this;
+    };
+
+    EventStream.prototype.receiveValue = noop;
+
+    EventStream.prototype.tap = function(func, context) {
+        func.call(context || this, this);
+        return this;
     };
 
     // Add context for debugging assistance.
@@ -75,29 +100,35 @@
 
     // constructors
 
-    // see `EventStream.merge`.
-    EventStream.prototype.merge = function(/*es, ...*/) {
-        return EventSource.merge([this].concat(arguments));
+    function Custom() {};
+    inherit(Custom, EventStream);
+
+    Custom.prototype.initialize = function(receiveValue) {
+        this.receiveValue = receiveValue;
+        return EventStream.prototype.initialize.call(this);
     };
 
+    EventStream.custom = function(receiveValue) {
+        return Custom.create(receiveValue);
+    };
 
     // Map each event value with `mapFunc`.
-    EventStream.prototype.map = function(mapFunc) {
-        return EventStream.create(function() {
+    EventStream.map = function(mapFunc) {
+        return Custom.create(function() {
             this.emit(mapFunc.apply(this, arguments));
         });
     };
 
     // Map all arguments through `mapFunc`.
-    EventStream.prototype.mapArray = function(mapFunc) {
-        return EventStream.create(function() {
+    EventStream.mapArray = function(mapFunc) {
+        return Custom.create(function() {
             this.emitArray(mapFunc.apply(this, arguments));
         });
     };
 
     // Only emit events when `filterFunc` returns a truthy value.
-    EventStream.prototype.filter = function(filterFunc) {
-        return EventStream.create(function() {
+    EventStream.filter = function(filterFunc) {
+        return Custom.create(function() {
             if (filterFunc.apply(this, arguments)) {
                 this.emitArray(arguments);
             }
@@ -107,28 +138,26 @@
     // Emit events from the value of `foldFunc`.
     // - foldFunc:function(value:Value, lastValue:Value):Value
     // - initialValue:Value
-    EventStream.prototype.fold = function(foldFunc, initialValue) {
-        return EventStream
+    EventStream.fold = function(foldFunc, initialValue) {
+        return Custom
             .create(function(value) {
                 this.emit(foldFunc.call(this, value, this.data.last));
                 this.setData('last', value);
             })
-            .setData('last', initialValue)
-            .receiveFrom(this);
+            .setData('last', initialValue);
     };
 
     // Emit the most recent event `bounce` ms after the first last event arrives.
-    EventStream.prototype.debounce = function(bounce) {
-        return EventStream
+    EventStream.debounce = function(bounce) {
+        return Custom
             .create(_.debounce(this.emit, bounce))
-            .setData('debounce', debounce)
-            .receiveFrom(this);
+            .setData('debounce', debounce);
     };
 
     // Delay each received event by `delay` ms. This function does not guarantee
     // order, but relies on the JS internal scheduler.
-    EventStream.prototype.delay = function(delay) {
-        return EventStream
+    EventStream.delay = function(delay) {
+        return Custom
             .create(function() {
                 var delayHandle;
 
@@ -142,161 +171,206 @@
                 }, delay, arguments);
                 this.onCancel.add(clear);
             })
-            .setData('delay', delay)
-            .receiveFrom(this);
+            .setData('delay', delay);
     };
 
     // Emit an event no more often than every `throttle` ms.
-    EventStream.prototype.throttle = function(throttle) {
-        return EventStream
+    EventStream.throttle = function(throttle) {
+        return Custom
             .create(_.throttle(this.emit, throttle))
-            .setData('throttle', throttle)
-            .receiveFrom(this);
+            .setData('throttle', throttle);
     };
 
     // Emit incoming events until `takeWhile` returns falsy.
-    EventStream.prototype.takeWhile = function(takeFunc) {
-        return EventStream
+    EventStream.takeWhile = function(takeFunc) {
+        return Custom
             .create(function() {
                 if (takeFunc.apply(this, arguments)) {
                     this.emitArray(arguments);
                 } else {
                     this.receiveValue = noop;
                 }
-            })
-            .receiveFrom(this);
+            });
     };
 
     // Don't emit events until `dropFunc` return falsy.
-    EventStream.prototype.dropWhile = function(dropFunc) {
-        return EventStream
+    EventStream.dropWhile = function(dropFunc) {
+        return Custom
             .create(function() {
                 if (!dropFunc.apply(this, arguments)) {
-                    this.receiveValue = _.bind(this.emit, this);
+                    this.receiveValue = this.emit;
                 }
-            })
-            .receiveFrom(this);
+            });
     };
 
     // Adapt a stream of events into promises of those events.
-    EventStream.prototype.promise = function() {
-        return EventStream.create(function() {
-            return $.Deferred().resolveWith(this, arguments);
-        }).receiveFrom(this);
+    EventStream.promise = function() {
+        return Custom
+            .create(function() {
+                this.emit($.Deferred().resolveWith(this, arguments));
+            });
     };
 
     // Adapt a stream of promises into a stream of values.
-    EventStream.prototype.unpromise = function() {
-        return EventStream.create(function(promise) {
-            var emit = _.bind(this.emitArray, this);
-            promise.then(emit, emit);
-        }).receiveFrom(this);
-    };
-
-    EventStream.prototype.mergeAndEnumerate = function(/*es, ...*/) {
-        var merged = EventStream.identity();
-        _.each(arguments, function(es, index) {
-            es.onEmit.add(function(value) {
-                merged.emit(index, value);
+    EventStream.unpromise = function() {
+        return Custom
+            .create(function(promise) {
+                promise.then(this.emit, this.emit);
             });
-        }, this);
-        return merged;
     };
 
-    EventStream.prototype.mergePromises = function(/*es, ...*/) {
-        // TODO
+    EventStream.prepend = function(prepend) {
+        return EventStream
+            .mapArray(function() {
+                var args = _.toArray(arguments);
+                args.unshift(this.data.prepend);
+                return args;
+            })
+            .setData('prepend', prepend);
     };
 
-    // independent constructors
-
-    // Create a new stream.
-    EventStream.create = function(receiveValue) {
-        return new EventStream(receiveValue);
-    };
+    function Identity() {};
+    inherit(Identity, EventStream);
+    Identity.prototype.receiveValue = Identity.prototype.emit;
 
     // Create a stream that replays whatever it receives.
     EventStream.identity = function() {
-        return EventStream.create(EventStream.prototype.emit);
+        return Identity.create();
     };
+
+    function Zero() {};
+    inherit(Zero, EventStream);
+    Zero.prototype.emitArray = returnThis;
 
     // This stream does not emit events.
     EventStream.zero = function() {
-        var es = EventStream.create(noop);
-        es.emitArray = returnThis;
-        return es;
+        return Zero.create();
     };
 
+    function One() {};
+    inherit(One, EventStream);
+
+    One.prototype.emitArray = function() {
+        this.emitArray = returnThis;
+        return EventStream.prototype.emitArray.apply(this, arguments);
+    };
+    
     // This stream emits one event with specified values(s).
     EventStream.one = function(/*value, ...*/) {
-        var es = EventStream.create(noop).emitArray(arguments);
-        es.emitArray = returnThis;
-        return es;
+        return One.create()
+            .create()
+            .emitArray(arguments);
     };
 
     // Emit constant value(s), and the same value on every trigger.
     EventStream.constant = function(/*value, ...*/) {
-        var values = arguments;
-        return EventStream.create(function() {
-            this.emitArray(values);
-        }).emitArray(values);
+        return EventStream
+            .mapArray(function() {
+                return this.data.values;
+            })
+            .setData('values', arguments)
+            .emitArray(arguments);
     };
 
     // Return a stream that emits the events of all stream arguments.
     EventStream.merge = function(/*es, ...*/) {
-        var merged = EventSource.map(_.identity);
-        _.each(arguments, merged.receiveFrom, merged);
-        return merged;
+        return EventSource
+            .map(_.identity)
+            .tap(function() {
+                _.each(arguments, this.receiveFrom, this);
+            });
+    };
+
+    function Switcher() {};
+    inherit(Switcher, EventStream);
+
+    Switcher.prototype.initialize = function(streams) {
+        EventStream.prototype.initialize.call(this);
+        _.bindAll(this, 'switchStreams');
+        this.setData('current', null);
+
+        _.each(streams, function(es) {
+            es.onEmit.add(this.switchStreams);
+            this.onCancel.add(function() {
+                es.onEmit.remove(this.switchStreams);
+            });
+        }, this);
+        return this;
+    };
+
+    Switcher.prototype.switchStreams = function(es) {
+        if (es !== this.data.current) {
+            if (this.data.current) {
+                this.data.current.unsendTo(this);
+            }
+            this.setData('current', ses)
+                .receiveFrom(ses);
+        }
+        return this;
     };
 
     // Switcher takes a list of `EventStream`s that emit `EventStream`s. When
     // one of the arguments emits a stream, switcher then emits values from that
     // stream.
     EventStream.switcher = function(/*es, ...*/) {
-        var switcher = EventStream.map(_.identity);
-        _.each(arguments, function(es) {
-            es.onEmit.add(function(ses) {
-                if (ses !== switcher.current) {
-                    if (switcher.current) {
-                        switcher.current.unsendTo(switcher);
-                    }
-                    switcher.current = ses;
-                    ses.sendTo(switcher);
-                }
-            });
-        });
-        return switcher;
+        return Switcher.create(arguments);
     };
 
-    // Trigger events from calling `valueFunc` every `interval` ms.
-    EventStream.interval = function(interval, valueFunc) {
-        var es = EventStream.create(noop);
+    function Interval() {};
+    inherit(Interval, EventStream);
 
-        var handle = setInterval(function() {
-            es.emit(valueFunc.call(es));
-        },  interval);
-        es.onCancel.add(function() {
+    Interval.prototype.initialize = function(interval, value) {
+        EventStream.prototype.initialize.call(this);
+        _.bindAll(this, 'emitValue');
+        this.setData({'interval': interval, 'value': value});
+
+        var handle = setInterval(this.emitValue, interval);
+        this.onCancel.add(function() {
             clearInterval(handle);
         });
+        return this;
+    };
 
-        return es;
+    Interval.prototype.emitValue = function() {
+        this.emit(this.data.value);
+        return this;
+    };
+
+    // Trigger `value` every `interval` ms.
+    EventStream.interval = function(interval, value) {
+        return Interval.create(interval, value);
+    };
+
+    function DOMEvent() {};
+    inherit(DOMEvent, EventStream);
+
+    DOMEvent.prototype.initialize = function(source, event, selector) {
+        this.setData({
+            '$source': jQuery(source),
+            'event': event,
+            'selector': selector
+        });
+
+        if (this.data.selector) {
+            this.data.$source.on(event, selector, this.emit);
+        } else {
+            this.data.$source.on(event, this.emit);
+        }
+
+        this.onCancel.add(function() {
+            if (this.data.selector) {
+                this.data.$source.off(this.data.event, this.data.selector, this.emit);
+            } else {
+                this.data.$source.off(this.data.event, this.emit);
+            }
+        });
+
+        return this;
     };
 
     // Trigger via jquery events.
-    EventStream.$ = function(source/*, event, [selector]*/) {
-        var es = EventStream.create(noop);
-
-        var args = Array.prototype.slice.call(arguments, 1, 3);
-        args.push(function(e) {
-            es.emit(e);
-        });
-
-        this.$source = $(source);
-        this.$source.on.apply(this.$source, args);
-        es.onCancel.add(function() {
-            this.$source.off.apply(this.$source, args);
-        });
-
-        return es;
+    EventStream.$ = function(source, event, selector) {
+        return DOMEvent.create(source, event, selector);
     };
 
     // Trigger via google maps events.

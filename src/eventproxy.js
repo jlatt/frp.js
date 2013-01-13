@@ -4,7 +4,9 @@
         if (key in object) {
             return object[key];
         }
-        return object[key] = defValueFunc.apply(this, arguments);
+        var value = defValueFunc.apply(this, arguments);
+        object[key] = value;
+        return value;
     };
 
     function EventProxy() {
