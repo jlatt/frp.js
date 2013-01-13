@@ -30,6 +30,10 @@
         });
     };
 
+    Stream.create = function() {
+        return new this();
+    };
+
     Stream.prototype.emit = function(value) {
         this.onEmit.fireWith(this, [value, this]);
         return this;
@@ -41,13 +45,13 @@
     };
 
     Stream.prototype.bind = function(receive) {
-        return _.bind(receive, this);
+        return _.bind(_.isFunction(receive) ? receive : identityEmit, this);
     };
 
     // Pipe events from one stream through `receive` to a new stream.
     // receive := Stream.function(Value)
     Stream.prototype.pipe = function(receive) {
-        var stream = new Stream();
+        var stream = Stream.create();
         this.onEmit.add(stream.bind(receive));
         return stream;
     };
@@ -60,9 +64,7 @@
     //
     // return := Stream
     Stream.prototype.identity = function() {
-        return this.pipe(function(value) {
-            this.emit(value);
-        });
+        return this.pipe();
     };
 
     // Emit a constant value for every input.
@@ -224,10 +226,10 @@
     //
     // return := Stream
     Stream.merge = function(/*stream, ...*/) {
-        var merged = new Stream();
+        var merged = Stream.create();
         _.chain(arguments)
             .pluck('onEmit')
-            .invoke('add', merged.bind(identityEmit));
+            .invoke('add', merged.bind());
         return merged;
     };
 
@@ -240,8 +242,8 @@
     //
     // return := Stream
     Stream.switcher = function(/*stream, ...*/) {
-        var switcher = new Stream();
-        var onEmit = switcher.bind(identityEmit);
+        var switcher = Stream.create();
+        var onEmit = switcher.bind();
         var current = null;
         Stream.merge.apply(Stream, arguments).pipe(function(stream) {
             if (current !== stream) {
@@ -270,7 +272,7 @@
     // selector := String
     // return := Sink
     Stream.$ = function(source, event, selector) {
-        var stream = new Stream();
+        var stream = Stream.create();
         var $source = jQuery(source);
         var args = Array.prototype.slice.call(arguments, 1);
         args.push(function(e) {
@@ -293,7 +295,7 @@
     // callback := Function
     // return := Sink
     Stream.gmap = function(source, event, callback) {
-        var stream = new Stream();
+        var stream = Stream.create();
         if (!_.isFunction(callback)) {
             callback = function(arg1) {
                 stream.emit(arg1);
@@ -314,7 +316,7 @@
     // wait := Number
     // return := Sink
     Stream.interval = function(value, wait) {
-        var stream = new Stream();
+        var stream = Stream.create();
         var handle = setInterval(function() {
             stream.emit(value);
         }, wait);

@@ -9,16 +9,24 @@
         return value;
     };
 
-    function EventProxy() {
+    function Proxy() {
         this.streams = {};
     };
 
-    EventProxy.prototype.get = function(id) {
-        return getDefault.call(EventStream, this.streams, id, EventStream.identity);
+    Proxy.prototype.get = function(id) {
+        return getDefault.call(frp.Stream, this.streams, id, frp.Stream.create);
     };
 
-    // export
+    Proxy.prototype.pipe = function(from, id) {
+        var to = this.get(id);
+        from.onEmit.add(to.bind());
+        return to;
+    };
 
-    frp.EventProxy = EventProxy;
+    //
+    // export
+    //
+
+    frp.Proxy = Proxy;
 
 }).call(this, this.frp = this.frp || {});
