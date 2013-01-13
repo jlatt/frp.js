@@ -187,14 +187,10 @@
                 clearTimeout(handle);
             };
             this.onCancel.add(clear);
-            handle = _
-                .chain(function(value) {
-                    this.onCancel.remove(clear);
-                    this.emit(value);
-                })
-                .bind(this)
-                .delay(wait)
-                .value();
+            handle = _.delay(this.bind(function(value) {
+                this.onCancel.remove(clear);
+                this.emit(value);
+            }), wait);
         });
     };
 
