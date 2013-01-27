@@ -5,10 +5,6 @@
     // utility functions
     //
 
-    function returnThis() {
-        return this;
-    };
-
     function identityEmit(value) {
         this.emit(value);
     };
@@ -36,7 +32,6 @@
     Stream.prototype.cancel = function() {
         this.onCancel.fireWith(this, [this]);
         this.onEmit.disable();
-        this.emit = returnThis;
         return this;
     };
 
@@ -146,7 +141,7 @@
     // dropWhile := Stream.function(Value):Boolean
     // return := Stream
     Stream.prototype.dropWhile = function(dropWhile) {
-        var maybeEmit = function() {
+        var maybeEmit = function(value) {
             if (!dropWhile.apply(this, arguments)) {
                 this.emit(value);
                 maybeEmit = identityEmit;
@@ -263,11 +258,12 @@
 
     //
     // FRP streams
+    // I still don't understand what switcher is for.
     //
 
     // Create a stream that emits events from all argument streams.
     //
-    // arguments := [Stream] || Stream... || arguments...
+    // arguments := Stream, ...[Stream, ...]
     // return := Stream
     Stream.merge = function(/*stream, ...*/) {
         var merged = Stream.create();
