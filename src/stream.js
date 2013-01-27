@@ -351,9 +351,7 @@
     Stream.gmap = function(source, event, callback) {
         var stream = Stream.create();
         if (!_.isFunction(callback)) {
-            callback = function(arg1) {
-                stream.emit(arg1);
-            };
+            callback = _.bind(identityEmit, stream);
         }
 
         var listener = google.maps.addListener(source, event, callback);
