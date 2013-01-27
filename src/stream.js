@@ -319,7 +319,7 @@
     // external event sources
     //
 
-    // Create a stream bound to a dom event using jQuery. `selector is optional.
+    // Create a stream bound to a dom event using jQuery. `selector` is optional.
     //
     // source := String | jQuery | DOMElement
     // event := String
