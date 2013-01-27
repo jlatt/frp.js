@@ -1,9 +1,9 @@
-(function(frp) {
+(function() {
+    'use strict';
+
     //
     // utility functions
     //
-
-    function noop() {};
 
     function returnThis() {
         return this;
@@ -14,25 +14,19 @@
     };
 
     //
-    // meat
+    // stream
     //
 
     // Create an event stream. Some streams are hooked to native (external)
     // event handlers. Others must be triggered directly by calling `emit`.
     function Stream() {
-        this.id = _.uniqueId('Stream:');
+        frp.Identifiable.call(this);
         this.onEmit = $.Callbacks('memory unique');
         this.onCancel = $.Callbacks('memory once unique');
-
-        this.onCancel.add(function() {
-            this.onEmit.empty();
-            this.onEmit.disable();
-        });
+        this.cancel = _.once(this.cancel);
     };
-
-    Stream.create = function() {
-        return new this();
-    };
+    frp.Identifiable.extend(Stream);
+    frp.Callable.extend(Stream);
 
     Stream.prototype.emit = function(value) {
         this.onEmit.fireWith(this, [value, this]);
@@ -41,19 +35,33 @@
 
     Stream.prototype.cancel = function() {
         this.onCancel.fireWith(this, [this]);
+        this.onEmit.disable();
+        this.emit = returnThis;
         return this;
     };
 
-    Stream.prototype.bind = function(receive) {
-        return _.bind(_.isFunction(receive) ? receive : identityEmit, this);
-    };
+    // Receive an event.
+    //
+    // value := Value
+    // fromStream := Stream
+    Stream.prototype.receive = function(value, fromStream) {};
 
-    // Pipe events from one stream through `receive` to a new stream.
-    // receive := Stream.function(Value)
+    // Pipe events from one stream through a new stream.
+    //
+    // receive := Stream.function(Value, Stream)
+    // return := Stream
     Stream.prototype.pipe = function(receive) {
         var stream = Stream.create();
-        this.onEmit.add(stream.bind(receive));
+        if (_.isFunction(receive)) {
+            stream.receive = receive;
+        }
+        this.onEmit.add(stream);
         return stream;
+    };
+
+    // Implement callable interface with a proxy to another simpler function.
+    Stream.prototype.apply = function(context, args) {
+        return this.receive(args[0]);
     };
 
     //
@@ -64,7 +72,7 @@
     //
     // return := Stream
     Stream.prototype.identity = function() {
-        return this.pipe();
+        return this.pipe(identityEmit);
     };
 
     // Emit a constant value for every input.
@@ -92,7 +100,7 @@
     // filter := function(Value):Boolean
     // return := Stream
     Stream.prototype.filter = function(filter) {
-        return this.pipe(function() {
+        return this.pipe(function(value) {
             if (filter.apply(this, arguments)) {
                 this.emit(value);
             }
@@ -121,16 +129,15 @@
     // takeWhile := Stream.function(Value):Boolean
     // return := Stream
     Stream.prototype.takeWhile = function(takeWhile) {
-        var take = function() {
+        var maybeEmit = function(value) {
             if (takeWhile.apply(this, arguments)) {
-                return true;
+                this.emit(value);
+            } else {
+                maybeEmit = frp.noop;
             }
-            take = function() { return false };
-            return false;
-            
         };
-        return this.filter(function() {
-            return take.apply(this, arguments);
+        return this.pipe(function() {
+            maybeEmit.apply(this, arguments);
         });
     };
 
@@ -139,15 +146,36 @@
     // dropWhile := Stream.function(Value):Boolean
     // return := Stream
     Stream.prototype.dropWhile = function(dropWhile) {
-        var drop = function() {
-            if (dropWhile.apply(this, arguments)) {
-                return false;
+        var maybeEmit = function() {
+            if (!dropWhile.apply(this, arguments)) {
+                this.emit(value);
+                maybeEmit = identityEmit;
             }
-            drop = function() { return true };
+        };
+        return this.pipe(function() {
+            maybeEmit.apply(this, arguments);
+        });
+    };
+
+    // Emit only consecutive events for which `isEqual` is falsy.
+    //
+    // isEqual := function(v1 := Value, v2 := Value) := Boolean [default: _.isEqual]
+    // return := Stream
+    Stream.prototype.unique = function(isEqual) {
+        if (!_.isFunction(isEqual)) {
+            isEqual = _.isEqual;
+        }
+        function checkEqual(value) {
+            var eq = !isEqual(lastValue, value);
+            lastValue = value;
+            return eq;
+        };
+        var shouldEmit = function(value) {
+            shouldEmit = checkEqual;
             return true;
         };
         return this.filter(function() {
-            return drop.apply(this, arguments);
+            return shouldEmit.apply(this, arguments);
         });
     };
 
@@ -160,9 +188,7 @@
     // wait := Number
     // return := Stream
     Stream.prototype.debounce = function(wait) {
-        return this.pipe(_.debounce(function(value) {
-            this.emit(value);
-        }, wait));
+        return this.pipe(_.debounce(identityEmit, wait));
     };
 
     // Emit an event no more than every `wait` ms.
@@ -170,9 +196,7 @@
     // wait := Number
     // return := Stream
     Stream.prototype.throttle = function(wait) {
-        return this.pipe(_.throttle(function(value) {
-            this.emit(value);
-        }, wait));
+        return this.pipe(_.throttle(identityEmit, wait));
     };
 
     // Delay all incoming events by `wait` ms. NB: This uses `setTimeout()` and
@@ -187,10 +211,14 @@
                 clearTimeout(handle);
             };
             this.onCancel.add(clear);
-            handle = _.delay(this.bind(function(value) {
-                this.onCancel.remove(clear);
-                this.emit(value);
-            }), wait);
+            handle = _
+                .chain(function(value) {
+                    this.onCancel.remove(clear);
+                    this.emit(value);
+                })
+                .bind(this)
+                .delay(wait)
+                .value();
         });
     };
 
@@ -208,6 +236,7 @@
     };
 
     // Unpackage incoming promises as values.
+    //
     // return := Stream
     Stream.prototype.unpromise = function() {
         return this.pipe(function(promise) {
@@ -218,18 +247,34 @@
         });
     };
 
+    // Abort the previous incoming value after receiving a new one.
+    //
+    // return := Stream
+    Stream.prototype.abortPrevious = function() {
+        var last = null;
+        return this.map(function(abortable) {
+            if (last != null) {
+                last.abort();
+            }
+            last = abortable;
+            return abortable;
+        });
+    };
+
     //
     // FRP streams
     //
 
     // Create a stream that emits events from all argument streams.
     //
+    // arguments := [Stream] || Stream... || arguments...
     // return := Stream
     Stream.merge = function(/*stream, ...*/) {
         var merged = Stream.create();
         _.chain(arguments)
+            .flatten()
             .pluck('onEmit')
-            .invoke('add', merged.bind());
+            .invoke('add', merged);
         return merged;
     };
 
@@ -240,20 +285,21 @@
     // Create a stream that emits events from the stream that is the most recent
     // event of the argument streams. These streams all themselves return streams.
     //
+    // arguments := Stream.merge.arguments
     // return := Stream
     Stream.switcher = function(/*stream, ...*/) {
         var switcher = Stream.create();
-        var onEmit = switcher.bind();
         var current = null;
-        Stream.merge.apply(Stream, arguments).pipe(function(stream) {
+        var merged = Stream.merge(arguments);
+        merged.receive = function(stream) {
             if (current !== stream) {
                 if (current !== null) {
-                    current.onEmit.remove(onEmit);
+                    current.onEmit.remove(this);
                 }
-                stream.onEmit.add(onEmit);
+                stream.onEmit.add(this);
                 current = stream;
             }
-        });
+        };
         return switcher;
     };
 
@@ -327,9 +373,8 @@
     };
 
     //
-    // export
+    // Export
     //
 
     frp.Stream = Stream;
-
-}).call(this, this.frp = this.frp || {});
+}).call(this);
