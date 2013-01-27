@@ -302,9 +302,9 @@
         merged.receive = function(stream) {
             if (current !== stream) {
                 if (current !== null) {
-                    current.onEmit.remove(this);
+                    current.onEmit.remove(switcher);
                 }
-                stream.onEmit.add(this);
+                stream.onEmit.add(switcher);
                 current = stream;
             }
         };
