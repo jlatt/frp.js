@@ -2,14 +2,6 @@
     'use strict';
 
     //
-    // utility functions
-    //
-
-    function identityEmit(value) {
-        this.emit(value);
-    };
-
-    //
     // stream
     //
 
@@ -24,11 +16,18 @@
     frp.Identifiable.extend(Stream);
     frp.Callable.extend(Stream);
 
+    // Call `onEmit` callbacks with `value`.
+    //
+    // value := Value
+    // return := Stream
     Stream.prototype.emit = function(value) {
         this.onEmit.fireWith(this, [value, this]);
         return this;
     };
 
+    // Cancel all event emission. Call `onCancel` callbacks.
+    //
+    // return := Stream
     Stream.prototype.cancel = function() {
         this.onCancel.fireWith(this, [this]);
         this.onEmit.disable();
@@ -62,6 +61,10 @@
     //
     // functional pipes
     //
+
+    function identityEmit(value) {
+        this.emit(value);
+    };
 
     // Emit all incoming events.
     //
@@ -152,21 +155,20 @@
         });
     };
 
-    // Emit only consecutive events for which `isEqual` is falsy.
+    // Emit only consecutive events for which `isEqual` is falsy. [default: _.isEqual]
     //
-    // isEqual := function(v1 := Value, v2 := Value) := Boolean [default: _.isEqual]
+    // isEqual := function(v1 := Value, v2 := Value) := Boolean
     // return := Stream
     Stream.prototype.unique = function(isEqual) {
         if (!_.isFunction(isEqual)) {
             isEqual = _.isEqual;
         }
-        function checkEqual(value) {
-            var eq = !isEqual(lastValue, value);
-            lastValue = value;
-            return eq;
-        };
         var shouldEmit = function(value) {
-            shouldEmit = checkEqual;
+            shouldEmit = function(value) {
+                var eq = !isEqual(lastValue, value);
+                lastValue = value;
+                return eq;
+            };
             return true;
         };
         return this.filter(function() {
@@ -239,6 +241,16 @@
             promise.done(function(value) {
                 stream.emit(value);
             });
+        });
+    };
+
+    // Pass a function to the incoming promise's pipe.
+    //
+    // return := Stream
+    Stream.prototype.pipePromise = function(receive) {
+        var pipeFunc = _.bind(receive, this);
+        return this.pipe(function(promise) {
+            return promise.pipe(pipeFunc);
         });
     };
 
