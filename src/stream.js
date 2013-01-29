@@ -326,7 +326,7 @@
     // selector := String
     // return := Stream
     Stream.$ = function(source, event, selector) {
-        var stream = Stream.create();
+        var stream = this.create();
         var $source = jQuery(source);
         var args = Array.prototype.slice.call(arguments, 1);
         args.push(function(e) {
@@ -349,7 +349,7 @@
     // callback := Function
     // return := Stream
     Stream.gmap = function(source, event, callback) {
-        var stream = Stream.create();
+        var stream = this.create();
         if (!_.isFunction(callback)) {
             callback = _.bind(identityEmit, stream);
         }
@@ -368,7 +368,7 @@
     // wait := Number
     // return := Stream
     Stream.interval = function(value, wait) {
-        var stream = Stream.create();
+        var stream = this.create();
         var handle = setInterval(function() {
             stream.emit(value);
         }, wait);
