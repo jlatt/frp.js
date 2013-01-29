@@ -45,7 +45,7 @@
     // receive := Stream.function(Value, Stream)
     // return := Stream
     Stream.prototype.pipe = function(receive) {
-        var stream = Stream.create();
+        var stream = this.constructor.create();
         if (_.isFunction(receive)) {
             stream.receive = receive;
         }
@@ -278,7 +278,7 @@
     // arguments := Stream, ...[Stream, ...]
     // return := Stream
     Stream.merge = function(/*stream, ...*/) {
-        var merged = Stream.create();
+        var merged = this.create();
         _.chain(arguments)
             .flatten()
             .pluck('onEmit')
@@ -296,7 +296,7 @@
     // arguments := Stream.merge.arguments
     // return := Stream
     Stream.switcher = function(/*stream, ...*/) {
-        var switcher = Stream.create();
+        var switcher = this.create();
         var current = null;
         var merged = Stream.merge(arguments);
         merged.receive = function(stream) {
@@ -312,7 +312,7 @@
     };
 
     Stream.prototype.switcher = function(stream) {
-        return Stream.switcher(this, stream);
+        return this.constructor.switcher(this, stream);
     };
 
     //
