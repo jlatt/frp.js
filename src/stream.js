@@ -9,8 +9,8 @@
     // event handlers. Others must be triggered directly by calling `emit`.
     function Stream() {
         frp.Identifiable.call(this);
-        this.onEmit = $.Callbacks('memory unique');
-        this.onCancel = $.Callbacks('memory once unique');
+        this.onEmit = jQuery.Callbacks('memory unique');
+        this.onCancel = jQuery.Callbacks('memory once unique');
         this.cancel = _.once(this.cancel);
     };
     frp.Identifiable.extend(Stream);
@@ -228,7 +228,7 @@
     // return := Stream
     Stream.prototype.promise = function() {
         return this.map(function() {
-            return $.Deferred().resolveWith(this, arguments).promise();
+            return jQuery.Deferred().resolveWith(this, arguments).promise();
         });
     };
 
