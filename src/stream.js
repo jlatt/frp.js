@@ -165,7 +165,7 @@
         }
         var shouldEmit = function(value) {
             shouldEmit = function(value) {
-                var eq = !isEqual.call(context, lastValue, value);
+                var eq = !isEqual.call(this, lastValue, value);
                 lastValue = value;
                 return eq;
             };
