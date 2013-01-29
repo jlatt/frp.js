@@ -12,15 +12,10 @@
     function Proxy() {
         this.streams = {};
     };
+    frp.Class.extend(Proxy);
 
     Proxy.prototype.get = function(id) {
         return getDefault.call(frp.Stream, this.streams, id, frp.Stream.create);
-    };
-
-    Proxy.prototype.pipe = function(from, id) {
-        var to = this.get(id);
-        from.onEmit.add(to.bind());
-        return to;
     };
 
     //
@@ -29,4 +24,4 @@
 
     frp.Proxy = Proxy;
 
-}).call(this, this.frp = this.frp || {});
+}).call(this);
