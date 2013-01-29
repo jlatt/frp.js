@@ -1,4 +1,4 @@
-(function(frp) {
+(function() {
 
     function getDefault(object, key, defValueFunc) {
         if (key in object) {
