@@ -165,7 +165,7 @@
         }
         var shouldEmit = function(value) {
             shouldEmit = function(value) {
-                var eq = !isEqual(lastValue, value);
+                var eq = !isEqual.call(context, lastValue, value);
                 lastValue = value;
                 return eq;
             };
@@ -324,7 +324,7 @@
     // source := String | jQuery | DOMElement
     // event := String
     // selector := String
-    // return := Sink
+    // return := Stream
     Stream.$ = function(source, event, selector) {
         var stream = Stream.create();
         var $source = jQuery(source);
@@ -347,7 +347,7 @@
     // source := google.maps.Object
     // event := String
     // callback := Function
-    // return := Sink
+    // return := Stream
     Stream.gmap = function(source, event, callback) {
         var stream = Stream.create();
         if (!_.isFunction(callback)) {
@@ -366,7 +366,7 @@
     //
     // value := Value
     // wait := Number
-    // return := Sink
+    // return := Stream
     Stream.interval = function(value, wait) {
         var stream = Stream.create();
         var handle = setInterval(function() {
