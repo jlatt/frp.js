@@ -1,8 +1,6 @@
 (function() {
     'use strict';
 
-    function noop() {};
-
     //
     // class
     //
@@ -43,7 +41,7 @@
     };
 
     // Apply this function. This is usually implemented by subclasses.
-    Callable.prototype.apply = noop;
+    Callable.prototype.apply = $.noop;
 
     //
     // export
@@ -52,7 +50,6 @@
     if (!this.frp) {
         this.frp = {};
     }
-    frp.noop = noop;
     frp.Identifiable = Identifiable;
     frp.Callable = Callable;
 }).call(this);

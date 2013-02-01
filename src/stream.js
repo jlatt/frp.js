@@ -14,6 +14,7 @@
     frp.Callable.extend(Stream);
 
     Stream.prototype.idPrefix = 'Stream';
+
     Stream.prototype.onEmitFlags = 'unique';
 
     // Call `onEmit` callbacks with `value`.
@@ -22,6 +23,24 @@
     // return := Stream
     Stream.prototype.emit = function(value) {
         this.onEmit.fireWith(this, [value, this]);
+        return this;
+    };
+
+    // Add a stream to this stream's emitter callbacks.
+    //
+    // callable := Callable
+    // return := Stream
+    Stream.prototype.sendTo = function(callable) {
+        this.onEmit.add(callable);
+        return this;
+    };
+
+    // Remove a stream from this stream's emitter callbacks.
+    //
+    // stream := Stream
+    // return := Stream
+    Stream.prototype.unSendTo = function(callable) {
+        this.onEmit.remove(callable);
         return this;
     };
 
@@ -49,7 +68,7 @@
         if (_.isFunction(receive)) {
             stream.receive = receive;
         }
-        this.onEmit.add(stream);
+        this.sendTo(stream);
         return stream;
     };
 
@@ -62,7 +81,7 @@
     // functional pipes
     //
 
-    function identityEmit(value) {
+    var identityEmit = function(value) {
         this.emit(value);
     };
 
@@ -131,7 +150,7 @@
             if (takeWhile.apply(this, arguments)) {
                 this.emit(value);
             } else {
-                maybeEmit = frp.noop;
+                maybeEmit = $.noop;
             }
         };
         return this.pipe(function() {
@@ -204,7 +223,7 @@
     Stream.prototype.delay = function(wait) {
         return this.pipe(function(value) {
             var handle;
-            function clear() {
+            var clear = function() {
                 clearTimeout(handle);
             };
             this.onCancel.add(clear);
@@ -302,9 +321,9 @@
         merged.receive = function(stream) {
             if (current !== stream) {
                 if (current !== null) {
-                    current.onEmit.remove(switcher);
+                    current.unSendTo(switcher);
                 }
-                stream.onEmit.add(switcher);
+                stream.sendTo(switcher);
                 current = stream;
             }
         };
