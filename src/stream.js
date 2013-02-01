@@ -1,20 +1,20 @@
 (function() {
     'use strict';
 
-    //
-    // stream
-    //
-
     // Create an event stream. Some streams are hooked to native (external)
     // event handlers. Others must be triggered directly by calling `emit`.
     function Stream() {
         frp.Identifiable.call(this);
-        this.onEmit = jQuery.Callbacks('memory unique');
+        frp.Callable.call(this);
+        this.onEmit = jQuery.Callbacks(this.onEmitFlags);
         this.onCancel = jQuery.Callbacks('memory once unique');
         this.cancel = _.once(this.cancel);
     };
     frp.Identifiable.extend(Stream);
     frp.Callable.extend(Stream);
+
+    Stream.prototype.idPrefix = 'Stream';
+    Stream.prototype.onEmitFlags = 'unique';
 
     // Call `onEmit` callbacks with `value`.
     //
@@ -378,9 +378,20 @@
         return stream;
     };
 
+    // MemoryStream is Stream that emits the last value for any callbacks added
+    // after events are emitted.
+    function MemoryStream() {
+        Stream.call(this);
+    };
+    Stream.extend(MemoryStream);
+
+    MemoryStream.prototype.idPrefix = 'MemoryStream';
+    MemoryStream.prototype.onEmitFlags = 'memory unique';
+
     //
     // Export
     //
 
-    frp.Stream = Stream;
+    frp.Stream       = Stream;
+    ftp.MemoryStream = MemoryStream;
 }).call(this);

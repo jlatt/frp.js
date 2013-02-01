@@ -24,9 +24,11 @@
     //
 
     function Identifiable() {
-        this.id = _.uniqueId('Stream:');
+        this.id = _.uniqueId(this.idPrefix);
     };
     Class.extend(Identifiable);
+
+    Identifiable.prototype.idPrefix = 'Id';
 
     //
     // callable: basic function emulation
