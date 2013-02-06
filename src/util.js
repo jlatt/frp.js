@@ -1,6 +1,18 @@
 (function() {
     'use strict';
 
+    function AssertError() {
+        Error.apply(this, arguments);
+    };
+    AssertError.prototype = new Error('assertion failed');
+    AssertError.prototype.constructor = AssertError;
+
+    var assert = function(condition, message) {
+        if (!condition) {
+            throw new AssertError(message);
+        }
+    };
+
     //
     // class
     //
@@ -50,6 +62,7 @@
     if (!this.frp) {
         this.frp = {};
     }
+    frp.assert = assert;
     frp.Identifiable = Identifiable;
     frp.Callable = Callable;
 }).call(this);
