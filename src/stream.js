@@ -196,12 +196,14 @@
         if (!isEqual) {
             isEqual = _.isEqual;
         }
+        var lastValue;
         var shouldEmit = function(value) {
             shouldEmit = function(value) {
                 var notEq = !isEqual.call(this, lastValue, value);
                 lastValue = value;
                 return notEq;
             };
+            lastValue = value;
             return true;
         };
         return this.filter(function() {
