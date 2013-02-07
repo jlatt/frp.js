@@ -41,6 +41,42 @@
     Identifiable.prototype.idPrefix = 'Id';
 
     //
+    // set based on id
+    //
+
+    function IdSet() {
+        this.members = {};
+    };
+    Class.extend(IdSet);
+
+    IdSet.prototype.length = 0;
+
+    IdSet.prototype.add = function(element) {
+        frp.assert(element && element.id);
+
+        if (!this.members.hasOwnProperty(element.id)) {
+            this.members[element.id] = element;
+            ++this.lemgth;
+        }
+        return this;
+    };
+
+    IdSet.prototype.remove = function(element) {
+        frp.assert(element && element.id);
+
+        if (this.members.hasOwnProperty(element.id)) {
+            delete this.members[element.id];
+            --this.length;
+        }
+        return this;
+    };
+
+    IdSet.prototype._ = function(fname) {
+        var args = Array.prototype.slice.call(arguments, 1);
+        return _[fname].apply(_, args);
+    };
+
+    //
     // callable: basic function emulation
     //
 
@@ -62,8 +98,10 @@
     if (!this.frp) {
         this.frp = {};
     }
+    frp.AssertError  = AssertError;
     frp.assert       = assert;
     frp.Class        = Class;
     frp.Identifiable = Identifiable;
+    frp.IdSet        = IdSet;
     frp.Callable     = Callable;
 }).call(this);

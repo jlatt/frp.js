@@ -1,3 +1,31 @@
+//
+// util
+//
+
+var testIterate = function(testValues, expected, block) {
+    return function() {
+        expect(expected.length);
+        var expectedIndex = 0;
+        var iter = block.call(this);
+        iter.onEmit.add(function(value) {
+            deepEqual(value, expected[expectedIndex]);
+            ++expectedIndex;
+        });
+        _.each(testValues, function(testValue) {
+            this.stream.emit(testValue);
+        }, this); 
+    };
+};
+ 
+var testNotImplemented =  function() {
+    expect(1);
+    ok(false, 'unimplemented');
+};
+
+//
+// stream
+//
+
 module('Stream', {
     'setup': function() {
         this.stream = frp.Stream.create();
@@ -68,21 +96,6 @@ test('prototype.constant', 1, function() {
     this.stream.emit();
 });
 
-var testIterate = function(testValues, expected, block) {
-    return function() {
-        expect(expected.length);
-        var expectedIndex = 0;
-        var iter = block.call(this);
-        iter.onEmit.add(function(value) {
-            deepEqual(value, expected[expectedIndex]);
-            ++expectedIndex;
-        });
-        _.each(testValues, function(testValue) {
-            this.stream.emit(testValue);
-        }, this); 
-    };
-};
-
 test('prototype.map', testIterate([5, 6, 7], [15, 18, 21], function() {
     return this.stream.map(function(value) {
         return value * 3;
@@ -126,11 +139,6 @@ test('prototype.unpack', testIterate([[1, 2, 3], [4, 5, 6], [7, 8, 9]], [0, 3, 6
         this.emit((a + b) - c);
     });
 }));
- 
-var testNotImplemented =  function() {
-    expect(1);
-    ok(false, 'unimplemented');
-};
 
 test('prototype.debounce', testNotImplemented);
 
@@ -160,6 +168,16 @@ test('gmap', testNotImplemented);
 
 test('interval', testNotImplemented);
 
-module('MemoryStream');
+//
+// memory stream
+//
 
-test('create', testNotImplemented);
+module('MemoryStream', {
+    'setup': function() {
+        this.stream = frp.MemoryStream.create()
+    }
+});
+
+test('create', 1, function() {
+    ok(this.stream, 'created');
+});

@@ -6,19 +6,30 @@
     <title>frp.js tests</title>
 
     <link rel="stylesheet" href="http://code.jquery.com/qunit/qunit-1.11.0.css">
+    <style>
+      body { max-width: 55em; margin: 0.5em auto; }
+    </style>
   </head>
 
   <body>
     <div id="qunit"></div>
     <div id="qunit-fixture"></div>
 
+    <!-- external libraries -->
     <script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.4/underscore-min.js"></script>
     <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
     <script src="http://code.jquery.com/qunit/qunit-1.11.0.js"></script>
 
+    <!-- util -->
     <script src="../src/util.js"></script>
+    <script src="util_test.js"></script>
+
+    <!-- stream -->
     <script src="../src/stream.js"></script>
-    <script src="../src/proxy.js"></script>
     <script src="stream_test.js"></script>
+
+    <!-- proxy -->
+    <script src="../src/proxy.js"></script>
+    <script src="proxy_test.js"></script>
   </body>
 </html>
