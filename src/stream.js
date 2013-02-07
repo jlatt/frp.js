@@ -5,19 +5,22 @@
     // event handlers. Others must be triggered directly by calling `emit`.
     function Stream() {
         frp.Identifiable.call(this);
-        frp.Callable.call(this);
+        _.bindAll(this, 'call');
         this.onEmit = jQuery.Callbacks(this.onEmitFlags);
         this.onCancel = jQuery.Callbacks('memory once unique');
         this.cancel = _.once(this.cancel);
     };
     frp.Identifiable.extend(Stream);
-    frp.Callable.extend(Stream);
+
+    Stream.prototype.call = function() {
+        this.receive.apply(this, arguments);
+    };
 
     Stream.prototype.idPrefix = 'Stream';
 
     Stream.prototype.onEmitFlags = 'unique';
 
-    // Call `onEmit` callbacks with `value`.
+    // Call `onEmit` callbacks with `value`, which is optional.
     //
     // value := Value
     // return := Stream
@@ -30,10 +33,10 @@
     //
     // callable := Callable
     // return := Stream
-    Stream.prototype.sendTo = function(callable) {
-        frp.assert(!!callable && _.isFunction(callable.apply));
+    Stream.prototype.sendTo = function(stream) {
+        frp.assert(!!stream && _.isFunction(stream.call));
 
-        this.onEmit.add(callable);
+        this.onEmit.add(stream.call);
         return this;
     };
 
@@ -41,8 +44,10 @@
     //
     // stream := Stream
     // return := Stream
-    Stream.prototype.unSendTo = function(callable) {
-        this.onEmit.remove(callable);
+    Stream.prototype.unSendTo = function(stream) {
+        frp.assert(!!stream && _.isFunction(stream.call));
+
+        this.onEmit.remove(stream.call);
         return this;
     };
 
@@ -74,11 +79,6 @@
         }
         this.sendTo(stream);
         return stream;
-    };
-
-    // Implement callable interface with a proxy to another simpler function.
-    Stream.prototype.apply = function(context, args) {
-        this.receive.apply(this, args);
     };
 
     //
@@ -461,5 +461,5 @@
     //
 
     frp.Stream       = Stream;
-    ftp.MemoryStream = MemoryStream;
+    frp.MemoryStream = MemoryStream;
 }).call(this);

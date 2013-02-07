@@ -62,7 +62,8 @@
     if (!this.frp) {
         this.frp = {};
     }
-    frp.assert = assert;
+    frp.assert       = assert;
+    frp.Class        = Class;
     frp.Identifiable = Identifiable;
-    frp.Callable = Callable;
+    frp.Callable     = Callable;
 }).call(this);
