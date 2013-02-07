@@ -1,7 +1,7 @@
-files = src/util.js src/stream.js src/proxy.js
+files = src/util.js src/stream.js src/proxy.js src/vector_clock.js
 
 frp.js: $(files)
-	cat $(files) > frp.js
+	cat $(files) > $@
 
 .PHONY: clean
 
