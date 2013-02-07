@@ -92,16 +92,28 @@
     Callable.prototype.apply = $.noop;
 
     //
+    // prototypal inheritance
+    //
+
+    var heir = (((typeof this.__proto__) !== 'undefined') ?
+                function(object) {
+                    return {'__proto__': object};
+                } :
+                function(object) {
+                    function Heir() {};
+                    Heir.prototype = object;
+                    return new Heir();
+                });
+
+    //
     // export
     //
 
-    if (!this.frp) {
-        this.frp = {};
-    }
     frp.AssertError  = AssertError;
     frp.assert       = assert;
     frp.Class        = Class;
     frp.Identifiable = Identifiable;
     frp.IdSet        = IdSet;
     frp.Callable     = Callable;
+    frp.heir         = heir;
 }).call(this);
