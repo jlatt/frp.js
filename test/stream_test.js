@@ -74,7 +74,7 @@ var testIterate = function(testValues, expected, block) {
         var expectedIndex = 0;
         var iter = block.call(this);
         iter.onEmit.add(function(value) {
-            strictEqual(value, expected[expectedIndex]);
+            deepEqual(value, expected[expectedIndex]);
             ++expectedIndex;
         });
         _.each(testValues, function(testValue) {
@@ -116,3 +116,50 @@ test('prototype.dropWhile', testIterate([1, 2, 3, 4, 5], [4, 5], function() {
 test('prototype.unique', testIterate([1, 2, 3, 3, 3, 4, 4], [1, 2, 3, 4], function() {
     return this.stream.unique();
 }));
+
+test('prototype.lastN', testIterate([1, 2, 3, 4, 5], [[1], [1, 2], [1, 2, 3], [2, 3, 4], [3, 4, 5]], function() {
+    return this.stream.lastN(3);
+}));
+
+test('prototype.unpack', testIterate([[1, 2, 3], [4, 5, 6], [7, 8, 9]], [0, 3, 6], function() {
+    return this.stream.unpack(function(a, b, c) {
+        this.emit((a + b) - c);
+    });
+}));
+ 
+var testNotImplemented =  function() {
+    expect(1);
+    ok(false, 'unimplemented');
+};
+
+test('prototype.debounce', testNotImplemented);
+
+test('prototype.throttle', testNotImplemented);
+
+test('prototype.delay', testNotImplemented);
+
+test('prototype.promise', testNotImplemented);
+
+test('prototype.unpromise', testNotImplemented);
+
+test('prototype.pipePromise', testNotImplemented);
+
+test('prototype.abortPrevious', testNotImplemented);
+
+test('merge', testNotImplemented);
+
+test('prototype.merge', testNotImplemented);
+
+test('switcher', testNotImplemented);
+
+test('prototype.switcher', testNotImplemented);
+
+test('$', testNotImplemented);
+
+test('gmap', testNotImplemented);
+
+test('interval', testNotImplemented);
+
+module('MemoryStream');
+
+test('create', testNotImplemented);

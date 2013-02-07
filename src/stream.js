@@ -214,6 +214,7 @@
     // Emit an array of the last `n` events from a stream.
     //
     // n := Number
+    // return := Stream
     Stream.prototype.lastN = function(n) {
         frp.assert(n > 0);
         frp.assert(n.toFixed() === n.toString());
