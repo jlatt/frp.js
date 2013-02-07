@@ -1,14 +1,24 @@
 (function(frp) {
+    'use strict';
 
-    function VectorClock(name) {
-        this.name = name;
+    var heir = (('__proto__' in 'test') ?
+                function(object) {
+                    return {'__proto__': object};
+                } :
+                function(object) {
+                    function Heir() {};
+                    Heir.prototype = object;
+                    return new Heir();
+                });
+
+    function VectorClock() {
         this.clocks = {};
-        this.clocks[name] = 0;
     };
+    frp.Class.extend(VectorClock);
 
     // Get the value of a key in the clock. Returns an integer >= 0.
     VectorClock.prototype.getClock = function(key) {
-        return (key in this.clocks) ? this.clocks[key] : 0;
+        return this.clocks.hasOwnProperty(key) ? this.clocks[key] : 0;
     };
 
     // Return `true` iff this clock is a descendant of `other`.
@@ -29,7 +39,10 @@
             .sort()
             .uniq(/*sorted=*/true)
             .each(function(key) {
-                merged.clocks[key] = Math.max(this.getClock(key), other.getClock(key));
+                merged.clocks[key] = _.chain([this, other])
+                    .invoke('getClock', key)
+                    .max()
+                    .value();
             }, this);
 
         // Safely increment this clock's local value, just in case the other
@@ -42,16 +55,15 @@
     };
 
     VectorClock.prototype.increment = function(name) {
-        var incr = VectorClock.create();
-
+        var incr = heir(this);
+        incr.name = name;
+        incr[name] = incr.getClock(name) + 1;
         return incr;
     };
 
-    VectorClock.create = function(name) {
-        return new VectorClock(name);
-    };
-
+    //
     // export
+    //
 
     frp.VectorClock = VectorClock;
 
