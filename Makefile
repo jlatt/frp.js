@@ -1,7 +1,9 @@
-files = src/__init__.js src/util.js src/stream.js src/proxy.js src/vectorclock.js
+files = src/__init__.js src/util.js src/iterator.js src/vectorclock.js src/stream.js src/proxy.js 
+
+all: frp.js
 
 frp.js: $(files)
-	(echo "(function() { 'use strict';"; cat $(files); echo "}).call(this);") > $@
+	cat $(files) | ./script/package.sh > $@
 
 .PHONY: clean test
 
