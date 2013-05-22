@@ -72,12 +72,9 @@ function lastN(n) {
     frp.assert(n > 1);
 
     return fold([], function(values, value) {
-        var last = values.slice(0, n - 1);
-        last.unshift(value);
-        if (last.length > n) {
-            last.length = n;
-        }
-        return last;
+        var next = [value].concat(values);
+        next.length = Math.min(next.length, n);
+        return next;
     });
 }
 
