@@ -6,20 +6,20 @@ function identity(value, send) {
 
 function map(func) {
     return function(value, send) {
-        identity.call(this, value, func.call(this, value));
+        send.call(this, func.call(this, value));
     };
 }
 
 function mapApply(func) {
     return function(value, send) {
-        identity.call(this, value, func.apply(this, value));
+        send.call(this, func.apply(this, value));
     };
 }
 
 function filter(func) {
     return function(value, send) {
         if (func.call(this, value)) {
-            identity.apply(this, arguments);
+            send.call(this, value);
         }
     };
 }
@@ -28,15 +28,17 @@ function fold(initial, func) {
     var current = initial;
     return function(value, send) {
         current = func.call(this, current, value);
-        send.call(this, value);
+        send.call(this, current);
     };
 }
 
 function chain(/*iterator, ...*/) {
+    frp.assert(arguments.length > 1);
+
     return _.reduceRight(arguments, function(next, current) {
         return function(value, send) {
             current.call(this, value, function(value) {
-                next.call(this, send, value);
+                next.call(this, value, send);
             });
         };
     }, identity);
@@ -49,8 +51,10 @@ function constant(value) {
 }
 
 function lastN(n) {
-    return fold([], function(value, values) {
-        var last = values.slice();
+    frp.assert(n > 1);
+
+    return fold([], function(values, value) {
+        var last = values.slice(0, n - 1);
         last.unshift(value);
         if (last.length > n) {
             last.length = n;
@@ -119,6 +123,17 @@ function throttle(wait) {
     return _.throttle(identity, wait);
 }
 
+function delay(wait) {
+    var handle;
+    function makeDelay(value, send) {
+        handle = _.chain(send).bind(this, [value]).delay(wait).value();
+    }
+    return onceThen(makeDelay, function(value, send) {
+        window.clearTimeout(handle);
+        makeDelay.apply(this, arguments);
+    });
+}
+
 var promise = map(function() {
     return jQuery.Deferred().resolveWith(this, arguments).promise();
 });
@@ -127,31 +142,42 @@ function unpromise(promise, send) {
     promise.done(send);
 }
 
-var abortPrevious = chain(lastN(2), mapApply(function(current, last) {
-        if (arguments.length > 1) {
-            last.abort();
-        }
-        return current;
-    }));
+var abortLastPromise = chain(lastN(2), mapApply(function(current, last) {
+    if (arguments.length > 1) {
+        last.abort();
+    }
+    return current;
+}));
+
+function mapPromise(done, fail) {
+    return map(function(promise) {
+        return promise.then(done, fail);
+    });
 }
 
+//
+// exports
+//
+
 frp.iter = {
-    'abortPrevious': abortPrevious,
-    'chain': chain,
-    'constant': constant,
-    'debounce': debounce,
-    'dropWhile': dropWhile,
-    'filter': filter,
-    'fold': fold,
-    'identity': identity,
-    'lastN': lastN,
-    'map': map,
-    'mapApply': mapApply,
-    'noop': noop,
-    'onceThen': onceThen,
-    'promise': promise,
-    'takeWhile': takeWhile,
-    'throttle': throttle,
-    'unique': unique,
-    'unpromise': unpromise
+    'abortLastPromise': abortLastPromise,
+    'chain':            chain,
+    'constant':         constant,
+    'debounce':         debounce,
+    'delay':            delay,
+    'dropWhile':        dropWhile,
+    'filter':           filter,
+    'fold':             fold,
+    'identity':         identity,
+    'lastN':            lastN,
+    'map':              map,
+    'mapPromise':       mapPromise,
+    'mapApply':         mapApply,
+    'noop':             noop,
+    'onceThen':         onceThen,
+    'promise':          promise,
+    'takeWhile':        takeWhile,
+    'throttle':         throttle,
+    'unique':           unique,
+    'unpromise':        unpromise
 };
