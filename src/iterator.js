@@ -2,7 +2,7 @@
 // functional iterators
 //
 
-function Identity() {};
+function Identity() {}
 
 Identity.prototype.onNext = function(value, send) {
     send.call(this, value);
@@ -10,7 +10,7 @@ Identity.prototype.onNext = function(value, send) {
 
 function Chain() {
     this.iterators = arguments;
-};
+}
 
 Chain.prototype.onNext = function(value, send) {
     this.onNextIterator(value, send, 0);
@@ -33,7 +33,7 @@ function Map(map) {
     frp.assert(!!map && _.isFunction(map.call));
 
     this.map = map;
-};
+}
 
 Map.prototype.onNext = function(value, send) {
     Identity.prototype.onNext.call(this, this.map.call(this, value), send);
@@ -43,7 +43,7 @@ function Filter(filter) {
     frp.assert(!!filter && _.isFunction(filter.call));
 
     this.filter = filter;
-};
+}
 
 Filter.prototype.onNext = function(value, send) {
     if (this.filter.call(this, value)) {
@@ -53,7 +53,7 @@ Filter.prototype.onNext = function(value, send) {
 
 function Constant(value) {
     this.value = value;
-};
+}
 
 Constant.prototype.onNext = function(value, send) {
     Identity.prototype.onNext.call(this, this.value, send);
@@ -64,7 +64,7 @@ function Fold(initial, fold) {
 
     this.value = initial;
     this.fold = fold;
-};
+}
 
 Fold.prototype.onNext = function(value, send) {
     this.value = this.fold.call(this, value, this.value);
@@ -75,7 +75,7 @@ function TakeWhile(take) {
     frp.assert(!!take && _.isFunction(take.call));
 
     this.take = take;
-};
+}
 
 TakeWhile.prototype.onNext = function(value, send) {
     if (this.take.call(this, value)) {
@@ -89,7 +89,7 @@ function DropWhile(drop) {
     frp.assert(!!drop && _.isFunction(drop.call));
 
     this.drop = drop;
-};
+}
 
 DropWhile.prototype.onNext = function(value, send) {
     if (!this.drop.call(this, value)) {
@@ -98,7 +98,7 @@ DropWhile.prototype.onNext = function(value, send) {
     }
 };
 
-function Unique() {};
+function Unique() {}
 
 Unique.prototype.isEqual = _.isEqual;
 
@@ -118,7 +118,7 @@ function LastN(n) {
     frp.assert(n > 0);
 
     this.n = n;
-};
+}
 
 LastN.prototype = new Fold([], function(value, values) {
     var lastN = (values.length >= this.n) ? values.slice(1, this.n) : values.slice();
@@ -136,19 +136,19 @@ function Debounce(wait) {
     frp.assert(wait > 0);
 
     this.onNext = _.debounce(Identity.prototype.onNext, wait);
-};
+}
 
 function Throttle(wait) {
     frp.assert(wait > 0);
 
     this.onNext = _.throttle(Identity.prototype.onNext, wait);
-};
+}
 
 //
 // future iterators
 //
 
-function Promise() {};
+function Promise() {}
 
 Promise.prototype.map = function(value) {
     return jQuery.Deferred().resolveWith(this, arguments).promise();
@@ -156,7 +156,7 @@ Promise.prototype.map = function(value) {
 
 Promise.prototype.onNext = Map.prototype.onNext;
 
-function Unpromise() {};
+function Unpromise() {}
 
 Unpromise.prototype.onNext = function(value, send) {
     var iter = this;
@@ -167,7 +167,7 @@ Unpromise.prototype.onNext = function(value, send) {
 
 function MapPromise(mapPromise) {
     this.mapPromise = _.bind(mapPromise, this);
-};
+}
 
 MapPromise.prototype.map = function(value) {
     return value.pipe(this.mapPromise);
@@ -175,7 +175,7 @@ MapPromise.prototype.map = function(value) {
 
 MapPromise.prototype.onNext = Map.prototype.onNext;
 
-function AbortPrevious() {};
+function AbortPrevious() {}
 
 AbortPrevious.prototype = new Chain(
     new LastN(2),

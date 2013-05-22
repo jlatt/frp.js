@@ -1,20 +1,20 @@
 function AssertError() {
     Error.apply(this, arguments);
-};
+}
 AssertError.prototype = new Error('assertion failed');
 AssertError.prototype.constructor = AssertError;
 
-var assert = function(condition, message) {
+function assert(condition, message) {
     if (!condition) {
         throw new AssertError(message);
     }
-};
+}
 
 //
 // class
 //
 
-function Class() {};
+function Class() {}
 
 Class.create = function() {
     return new this();
@@ -32,7 +32,7 @@ Class.extend = function(Target) {
 
 function Identifiable() {
     this.id = _.uniqueId(this.idPrefix);
-};
+}
 Class.extend(Identifiable);
 
 Identifiable.prototype.idPrefix = 'Id';
@@ -43,7 +43,7 @@ Identifiable.prototype.idPrefix = 'Id';
 
 function IdSet() {
     this.members = {};
-};
+}
 Class.extend(IdSet);
 
 IdSet.prototype.length = 0;
@@ -77,7 +77,7 @@ IdSet.prototype._ = function(fname) {
 // callable: basic function emulation
 //
 
-function Callable() {};
+function Callable() {}
 Class.extend(Callable);
 
 Callable.prototype.call = function(context) {
@@ -92,15 +92,11 @@ Callable.prototype.apply = $.noop;
 // prototypal inheritance
 //
 
-var heir = (((typeof this.__proto__) !== 'undefined') ?
-            function(object) {
-                return {'__proto__': object};
-            } :
-            function(object) {
-                function Heir() {};
-                Heir.prototype = object;
-                return new Heir();
-            });
+function heir(object) {
+    function Heir() {}
+    Heir.prototype = object;
+    return new Heir();
+}
 
 //
 // export
@@ -113,4 +109,3 @@ frp.Identifiable = Identifiable;
 frp.IdSet        = IdSet;
 frp.Callable     = Callable;
 frp.heir         = heir;
-
