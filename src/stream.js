@@ -428,17 +428,17 @@ Stream.gmap = function(source, event, callback) {
     return stream;
 };
 
-// Emit `value` on a regular schedule of `wait` ms.
+// Emit the value of `sample()` on a regular schedule of `wait` ms.
 //
-// value := Value
 // wait := Number
+// value := Function
 // return := Stream
-Stream.interval = function(value, wait) {
+Stream.interval = function(wait, sample) {
     frp.assert(wait > 0);
 
     var stream = this.create();
     var handle = setInterval(function() {
-        stream.emit(value);
+        stream.emit(sample());
     }, wait);
     stream.onCancel.add(function() {
         clearInterval(handle);
