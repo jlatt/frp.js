@@ -1,211 +1,202 @@
-//
-// functional iterators
-//
-
-function Identity() {};
-
-Identity.prototype.onNext = function(value, send) {
+// Send every received value.
+function identity(value, send) {
     send.call(this, value);
-};
+}
 
-function Chain() {
-    this.iterators = arguments;
-};
+// Map incoming values with `func(value)`.
+function map(func) {
+    return function(value, send) {
+        send.call(this, func.call(this, value));
+    };
+}
 
-Chain.prototype.onNext = function(value, send) {
-    this.onNextIterator(value, send, 0);
-};
+// Map incoming values by applying `value` an an arguments array.
+function mapApply(func) {
+    return function(value, send) {
+        send.call(this, func.apply(this, value));
+    };
+}
 
-Chain.prototype.onNextIterator = function(value, send, index) {
-    frp.assert(index >= 0);
+// Filter incoming values with `func(value)`.
+function filter(func) {
+    return function(value, send) {
+        if (func.call(this, value)) {
+            send.call(this, value);
+        }
+    };
+}
 
-    if (index < this.iterators.length) {
-        var chain = this;
-        this.iterators[index].onNext(value, function(value) {
-            chain.onNextIterator(value, send, index + 1);
-        });
-    } else {
-        Identity.prototype.onNext.call(this, value, send);
+// Fold over the incoming stream. Call `func(current, value)` where `current`
+// begins with value `initial` and the return value sets `current` for the next
+// call.
+function fold(initial, func) {
+    var current = initial;
+    return function(value, send) {
+        current = func.call(this, current, value);
+        send.call(this, current);
+    };
+}
+
+// Chain a list of iterator functions together.
+function chain(/*iterator, ...*/) {
+    if (arguments.length === 0) {
+        return identity;
     }
-};
 
-function Map(map) {
-    frp.assert(_.isFunction(map));
-
-    this.map = map;
-};
-
-Map.prototype.onNext = function(value, send) {
-    Identity.prototype.onNext.call(this, this.map(value), send);
-};
-
-function MapApply(map) {
-    Map.apply(this, arguments);
-};
-
-MapApply.prototype.onNext = function(value, send) {
-    Identity.prototype.onNext.call(this, this.map.apply(this, value), send);
-};
-
-function Filter(filter) {
-    frp.assert(_.isFunction(filter));
-
-    this.filter = filter;
-};
-
-Filter.prototype.onNext = function(value, send) {
-    if (this.filter(value)) {
-        Identity.prototype.onNext.apply(this, arguments);
+    if (arguments.length === 1) {
+        return arguments[0];
     }
-};
 
-function Constant(value) {
-    this.value = value;
-};
+    return _.reduceRight(arguments, function(next, current) {
+        return function(value, send) {
+            current.call(this, value, function(value) {
+                next.call(this, value, send);
+            });
+        };
+    }, identity);
+}
 
-Constant.prototype.onNext = function(value, send) {
-    Identity.prototype.onNext.call(this, this.value, send);
-};
-
-function Fold(initial, fold) {
-    frp.assert(_.isFunction(fold));
-
-    this.value = initial;
-    this.fold = fold;
-};
-
-Fold.prototype.onNext = function(value, send) {
-    this.value = this.fold(value, this.value);
-    Identity.prototype.onNext.call(this, this.value, send);
-};
-
-function TakeWhile(take) {
-    frp.assert(_.isFunction(take));
-
-    this.take = take;
-};
-
-TakeWhile.prototype.onNext = function(value, send) {
-    if (this.take(value)) {
-        Identity.prototype.onNext.apply(this, arguments);
-    } else {
-        this.onNext = $.noop;
-    }
-};
-
-function DropWhile(drop) {
-    frp.assert(_.isFunction(drop));
-
-    this.drop = drop;
-};
-
-DropWhile.prototype.onNext = function(value, send) {
-    if (!this.drop(value)) {
-        this.onNext = Identity.prototype.onNext;
-        this.onNext(value, send);
-    }
-};
-
-function Unique() {};
-
-Unique.prototype = new Filter(function(value) {
-    var eq = this.isEqual(value, this.value);
-    this.value = value;
-    return !eq;
-});
-
-Unique.prototype.constructor = Unique;
-
-Unique.prototype.isEqual = _.isEqual;
-
-Unique.prototype.onNext = function(value, send) {
-    this.value = value;
-    this.onNext = Filter.prototype.onNext;
-    Identity.prototype.onNext.apply(this, arguments);
-};
-
-function LastN(n) {
-    frp.assert(n > 0);
-
-    this.n = n;
-};
-
-LastN.prototype = new Fold([], function(value, values) {
-    var lastN = (values.length >= this.n) ? values.slice(1, this.n) : values.slice();
-    lastN.push(value);
-    return lastN;
-});
-
-LastN.prototype.constructor = LastN;
-
-//
-// timing iterators
-//
-
-function Debounce(wait) {
-    frp.assert(wait > 0);
-
-    this.onNext = _.debounce(this.onNext, wait);
-};
-
-Debounce.prototype = new Identity();
-
-Debounce.prototype.constructor = Debounce;
-
-function Throttle(wait) {
-    frp.assert(wait > 0);
-
-    this.onNext = _.throttle(this.onNext, wait);
-};
-
-Throttle.prototype = new Identity();
-
-Throttle.prototype.constructor = Throttle;
-
-//
-// future iterators
-//
-
-function Promise() {};
-
-Promise.prototype.map = function(value) {
-    return jQuery.Deferred().resolveWith(this, arguments).promise();
-};
-
-Promise.prototype.onNext = Map.prototype.onNext;
-
-function Unpromise() {};
-
-Unpromise.prototype.onNext = function(value, send) {
-    var iter = this;
-    value.done(function() {
-        send.apply(iter, arguments);
+// Send a constant `value` for every received value.
+function constant(value) {
+    return map(function() {
+        return value;
     });
-};
+}
 
-function MapPromise(mapPromise) {
-    this.mapPromise = _.bind(mapPromise, this);
-};
+// For incoming values, send an array of up to `n` received values in that
+// order.
+function lastN(n) {
+    frp.assert(n > 1);
 
-MapPromise.prototype.map = function(value) {
-    return value.pipe(this.mapPromise);
-};
+    return fold([], function(values, value) {
+        var next = [value].concat(values);
+        next.length = Math.min(next.length, n);
+        return next;
+    });
+}
 
-MapPromise.prototype.onNext = Map.prototype.onNext;
+// For the first value, call `once`. Afterwards, call `then`.
+function onceThen(once, then) {
+    var current = function() {
+        once.apply(this, arguments);
+        current = then;
+    };
+    return function() {
+        current.apply(this, arguments);
+    };
+}
 
-function AbortPrevious() {};
+// Only send values unique from the previously received value.
+function unique(isEqual) {
+    if (!_.isFunction(isEqual)) {
+        isEqual = _.bind(_.isEqual, _);
+    }
 
-AbortPrevious.prototype = new Chain(
-    new LastN(2),
-    new Map(function(values) {
-        this.map = this.abortPrevious;
-        return values[0];
-    })
-);
+    var current;
+    var setAndSend = function(value, send) {
+        current = value;
+        send.call(this, current);
+    };
+    return onceThen(setAndSend, function(value, send) {
+        if (!isEqual.call(this, current, value)) {
+            setAndSend.call(this, value, send);
+        }
+    });
+}
 
-AbortPrevious.prototype.constructor = AbortPrevious;
+// Send received values until `func` returns `false`.
+function takeWhile(func) {
+    var taking = function(value, send) {
+        if (func.call(this, value)) {
+            send.call(this, value);
+        } else {
+            taking = $.noop;
+        }
+    };
+    return function() {
+        taking.apply(this, arguments);
+    };
+}
 
-AbortPrevious.prototype.abortPrevious = function(values) {
-    values[0].abort();
-    return values[1];
+// Send no received values until `func` returns `false`.
+function dropWhile(func) {
+    var dropping = function(value, send) {
+        if (!func.call(this, value)) {
+            dropping = $.noop;
+            send.call(this, value);
+        }
+    };
+    return function() {
+        dropping.apply(this, arguments);
+    };
+}
+
+// Send the last value after reeiving no values for `wait` ms.
+function debounce(wait) {
+    return _.debounce(identity, wait);
+}
+
+// Send no more than one value per `wait` ms.
+function throttle(wait) {
+    return _.throttle(identity, wait);
+}
+
+// Send incoming values after a delay of `wait` ms. This relies on the
+// scheduler, so order cannot be guaranteed.
+function delay(wait) {
+    var handle;
+    return function(value, send) {
+        _.chain(send).bind(this, [value]).delay(wait);
+    };
+}
+
+// Turn incoming values into a promise for a value.
+var promise = map(function() {
+    return jQuery.Deferred().resolveWith(this, arguments).promise();
+});
+
+// Remove promise wrappers. Order is not guaranteed.
+function unpromise(promise, send) {
+    promise.done(send);
+}
+
+// Call `abort` on the previous value sent when sending a new value.
+var abortLast = chain(lastN(2), mapApply(function(current, last) {
+    if (arguments.length > 1) {
+        last.abort();
+    }
+    return current;
+}));
+
+// Map promises through a filter. Order is not guaranteed.
+function mapPromise(done) {
+    return map(function(promise) {
+        return promise.then(done);
+    });
+}
+
+//
+// exports
+//
+
+frp.iter = {
+    'abortLast':  abortLast,
+    'chain':      chain,
+    'constant':   constant,
+    'debounce':   debounce,
+    'delay':      delay,
+    'dropWhile':  dropWhile,
+    'filter':     filter,
+    'fold':       fold,
+    'identity':   identity,
+    'lastN':      lastN,
+    'map':        map,
+    'mapPromise': mapPromise,
+    'mapApply':   mapApply,
+    'onceThen':   onceThen,
+    'promise':    promise,
+    'takeWhile':  takeWhile,
+    'throttle':   throttle,
+    'unique':     unique,
+    'unpromise':  unpromise
 };
