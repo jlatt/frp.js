@@ -122,7 +122,7 @@ function takeWhile(func) {
 function dropWhile(func) {
     var dropping = function(value, send) {
         if (!func.call(this, value)) {
-            dropping = $.noop;
+            dropping = identity;
             send.call(this, value);
         }
     };

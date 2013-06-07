@@ -13,10 +13,10 @@ var testIterate = function(testValues, expected, block) {
         });
         _.each(testValues, function(testValue) {
             this.stream.emit(testValue);
-        }, this); 
+        }, this);
     };
 };
- 
+
 var testNotImplemented =  function() {
     expect(1);
     ok(false, 'unimplemented');
@@ -167,17 +167,3 @@ test('$', testNotImplemented);
 test('gmap', testNotImplemented);
 
 test('interval', testNotImplemented);
-
-//
-// memory stream
-//
-
-module('MemoryStream', {
-    'setup': function() {
-        this.stream = frp.MemoryStream.create()
-    }
-});
-
-test('create', 1, function() {
-    ok(this.stream, 'created');
-});
