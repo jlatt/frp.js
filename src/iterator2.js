@@ -1,6 +1,3 @@
-// Do nothing.
-function noop(value, send) {}
-
 // Send every received value.
 function identity(value, send) {
     send.call(this, value);
@@ -113,7 +110,7 @@ function takeWhile(func) {
         if (func.call(this, value)) {
             send.call(this, value);
         } else {
-            taking = noop;
+            taking = $.noop;
         }
     };
     return function() {
@@ -125,7 +122,7 @@ function takeWhile(func) {
 function dropWhile(func) {
     var dropping = function(value, send) {
         if (!func.call(this, value)) {
-            dropping = noop;
+            dropping = $.noop;
             send.call(this, value);
         }
     };
@@ -196,7 +193,6 @@ frp.iter = {
     'map':        map,
     'mapPromise': mapPromise,
     'mapApply':   mapApply,
-    'noop':       noop,
     'onceThen':   onceThen,
     'promise':    promise,
     'takeWhile':  takeWhile,

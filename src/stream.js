@@ -1,13 +1,13 @@
 // Create an event stream. Some streams are hooked to native (external)
 // event handlers. Others must be triggered directly by calling `emit`.
-function Stream(iter) {
+function Stream(iter, emitFlags) {
     frp.Identifiable.call(this);
     _.bindAll(this, 'call');
-    this.onEmit   = jQuery.Callbacks(this.onEmitFlags);
+    this.onEmit   = jQuery.Callbacks(emitFlags);
     this.onCancel = jQuery.Callbacks(this.onCancelFlags);
     this.cancel   = _.once(this.cancel);
     this.iter     = iter;
-};
+}
 frp.Identifiable.extend(Stream);
 
 Stream.prototype.call = function() {
@@ -15,7 +15,6 @@ Stream.prototype.call = function() {
 };
 
 Stream.prototype.idPrefix      = 'Stream';
-Stream.prototype.onEmitFlags   = 'unique';
 Stream.prototype.onCancelFlags = 'memory once unique';
 
 // Call `onEmit` callbacks with `value`, which is optional.
@@ -183,19 +182,8 @@ Stream.interval = function(value, wait) {
     return stream;
 };
 
-// MemoryStream is Stream that emits the last value for any callbacks added
-// after events are emitted.
-function MemoryStream() {
-    Stream.call(this);
-};
-Stream.extend(MemoryStream);
-
-MemoryStream.prototype.idPrefix    = 'MemoryStream';
-MemoryStream.prototype.onEmitFlags = 'memory unique';
-
 //
 // Export
 //
 
 frp.Stream       = Stream;
-frp.MemoryStream = MemoryStream;

@@ -1,4 +1,4 @@
-files = src/__init__.js src/util.js src/iterator.js src/vectorclock.js src/stream.js src/proxy.js 
+files = src/__init__.js src/util.js src/iterator.js src/vectorclock.js src/stream.js src/proxy.js
 
 all: frp.js
 
@@ -12,3 +12,6 @@ clean:
 
 test: frp.js
 	open test/index.html
+
+lint:
+	jshint $(files)
