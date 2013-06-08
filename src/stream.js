@@ -7,7 +7,9 @@ function Stream() {
     this.cancel   = _.once(this.cancel);
 }
 
-frp.Class.extend(Stream);
+Stream.create = function() {
+    return new Stream();
+};
 
 Stream.prototype.iter = frp.iter.identity;
 
@@ -85,7 +87,7 @@ Stream.prototype.merge = function(/*stream, ...*/) {
 // selector := String
 // return := Stream
 Stream.$ = function(source, event, selector) {
-    var stream = this.create();
+    var stream = Stream.create();
     var $source = jQuery(source);
     frp.assert($source.length > 0, 'empty jQuery');
     var args = Array.prototype.slice.call(arguments, 1);
@@ -111,7 +113,7 @@ Stream.$ = function(source, event, selector) {
 Stream.gmap = function(source, event, callback) {
     frp.assert(_.isString(event));
 
-    var stream = this.create();
+    var stream = Stream.create();
     if (!_.isFunction(callback)) {
         callback = identityEmit;
     }
@@ -133,7 +135,7 @@ Stream.gmap = function(source, event, callback) {
 Stream.sample = function(sample, wait) {
     frp.assert(wait > 0);
 
-    var stream = this.create();
+    var stream = Stream.create();
     var handle = setInterval(function() {
         stream.emit(sample());
     }, wait);

@@ -1,11 +1,18 @@
 function VectorClock() {}
-frp.Class.extend(VectorClock);
+
+VectorClock.create = function() {
+    return new VectorClock();
+};
 
 VectorClock.prototype.clocks = {};
 
+function returnZero() {
+    return 0;
+}
+
 // Get the value of a key in the clock. Returns an integer >= 0.
 VectorClock.prototype.getClock = function(key) {
-    return this.clocks[key] || 0;
+    return frp.getDefault.call(this, this.clocks, key, returnZero);
 };
 
 // Return `true` iff this clock is a descendant of `other`.

@@ -1,3 +1,1 @@
-if (!this.frp) {
-    this.frp = {};
-}
+this.frp = {};
