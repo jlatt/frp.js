@@ -1,11 +1,15 @@
 /* globals frp: false */
 
+// Create a new vector clock.
 function VectorClock() {}
 
+// Wrap the constructor for ease.
 VectorClock.create = function() {
     return new VectorClock();
 };
 
+// Map names to integers. Since vector clocks are read-only structures, it's
+// safe to use this so long as the name `clocks` is overridden in new instances.
 VectorClock.prototype.clocks = {};
 
 function returnZero() {
@@ -24,8 +28,7 @@ VectorClock.prototype.descends = function(other) {
     }, this);
 };
 
-// new clocks
-
+// Merge this vector clock with another.
 VectorClock.prototype.merge = function(other) {
     var merged = VectorClock.create();
     merged.clocks = frp.heir(merged.clocks);
@@ -44,6 +47,7 @@ VectorClock.prototype.merge = function(other) {
         }, this);
 };
 
+// Return a vector clock with `name` incremented by 1.
 VectorClock.prototype.increment = function(name) {
     var incr = VectorClock.create();
     incr.clocks = frp.heir(this.clocks);
@@ -51,8 +55,5 @@ VectorClock.prototype.increment = function(name) {
     return incr;
 };
 
-//
-// export
-//
-
+// Export.
 frp.VectorClock = VectorClock;
