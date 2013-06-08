@@ -1,9 +1,22 @@
+/* globals frp: false */
+
+// Types:
+//
+//     Send := function(Value)
+//     Iterator := function(Value, Send)
+
 // Send every received value.
+//
+//     value := Value
+//     send := Send
 function identity(value, send) {
     send.call(this, value);
 }
 
-// Map incoming values with `func(value)`.
+// Map incoming values with `func`.
+//
+//     func := function(Value) Value
+//     return := Iterator
 function map(func) {
     return function(value, send) {
         send.call(this, func.call(this, value));
@@ -11,13 +24,19 @@ function map(func) {
 }
 
 // Map incoming values by applying `value` an an arguments array.
+//
+//     func := function(Value, ...) Value
+//     return := Iterator
 function mapApply(func) {
     return function(value, send) {
         send.call(this, func.apply(this, value));
     };
 }
 
-// Filter incoming values with `func(value)`.
+// Filter incoming values with `func`.
+//
+//     func := function(Value) Boolean
+//     return := Iterator
 function filter(func) {
     return function(value, send) {
         if (func.call(this, value)) {
@@ -26,9 +45,12 @@ function filter(func) {
     };
 }
 
-// Fold over the incoming stream. Call `func(current, value)` where `current`
-// begins with value `initial` and the return value sets `current` for the next
-// call.
+// Fold over the incoming stream. Call `func` where `current` begins with value
+// `initial` and the return value sets `current` for the next call.
+//
+//     initial := Value
+//     func := function(Value, Value) Value
+//     return := Iterator
 function fold(initial, func) {
     var current = initial;
     return function(value, send) {
@@ -38,6 +60,9 @@ function fold(initial, func) {
 }
 
 // Chain a list of iterator functions together.
+//
+//     iterator := Iterator, ...
+//     return := Iterator
 function chain(/*iterator, ...*/) {
     if (arguments.length === 0) {
         return identity;
@@ -57,6 +82,9 @@ function chain(/*iterator, ...*/) {
 }
 
 // Send a constant `value` for every received value.
+//
+//     value := Value
+//     return := Iterator
 function constant(value) {
     return map(function() {
         return value;
@@ -65,6 +93,9 @@ function constant(value) {
 
 // For incoming values, send an array of up to `n` received values in that
 // order.
+//
+//     n := Number, > 1
+//     return := Iterator
 function lastN(n) {
     frp.assert(n > 1);
 
@@ -76,6 +107,8 @@ function lastN(n) {
 }
 
 // For the first value, call `once`. Afterwards, call `then`.
+//
+//     once, then, return := Iterator
 function onceThen(once, then) {
     var current = function() {
         once.apply(this, arguments);
@@ -87,6 +120,9 @@ function onceThen(once, then) {
 }
 
 // Only send values unique from the previously received value.
+//
+//     isEqual := function(Value, Value) Boolean [optional]
+//     return := Iterator
 function unique(isEqual) {
     if (!_.isFunction(isEqual)) {
         isEqual = _.bind(_.isEqual, _);
@@ -104,7 +140,10 @@ function unique(isEqual) {
     });
 }
 
-// Send received values until `func` returns `false`.
+// Send received values until `func` returns falsy.
+//
+//     func := function(Value) Boolean
+//     return := Iterator
 function takeWhile(func) {
     var taking = function(value, send) {
         if (func.call(this, value)) {
@@ -118,7 +157,10 @@ function takeWhile(func) {
     };
 }
 
-// Send no received values until `func` returns `false`.
+// Send no received values until `func` returns falsy.
+//
+//     func := function(Value) Boolean
+//     return := Iterator
 function dropWhile(func) {
     var dropping = function(value, send) {
         if (!func.call(this, value)) {
@@ -132,17 +174,26 @@ function dropWhile(func) {
 }
 
 // Send the last value after reeiving no values for `wait` ms.
+//
+//     wait := Number
+//     return := Iterator
 function debounce(wait) {
     return _.debounce(identity, wait);
 }
 
 // Send no more than one value per `wait` ms.
+//
+//     wait := Number
+//     return := Iterator
 function throttle(wait) {
     return _.throttle(identity, wait);
 }
 
 // Send incoming values after a delay of `wait` ms. This relies on the
 // scheduler, so order cannot be guaranteed.
+//
+//     wait := Number
+//     return := Iterator
 function delay(wait) {
     var handle;
     return function(value, send) {
@@ -150,12 +201,17 @@ function delay(wait) {
     };
 }
 
-// Turn incoming values into a promise for a value.
+// Turn incoming values into a resolved promise for a value.
+//
+//     return := Iterator
 var promise = map(function() {
     return jQuery.Deferred().resolveWith(this, arguments).promise();
 });
 
 // Remove promise wrappers. Order is not guaranteed.
+//
+//     promise := $.Deferred
+//     send := function(Value)
 function unpromise(promise, send) {
     promise.done(send);
 }
@@ -169,21 +225,19 @@ var abortLast = chain(lastN(2), mapApply(function(current, last) {
 }));
 
 // Map promises through a filter. Order is not guaranteed.
+//
+//     return := Iterator
 function mapPromise(done) {
     return map(function(promise) {
         return promise.then(done);
     });
 }
 
+// Build an iterator. Pass an even number of arguments, alternating between the
+// name of an iterator in `frp.iter` and an array of arguments.
 //
-// convenience
-//
-
-// Build an iterator.
-//
-// nameN := String
-// argsN := Array
-// return := function(value, send)
+//     arguments := String, Array, String, Array, ...
+//     return := Iterator
 function build(/*name1, args1, name2, args2, ...*/) {
     var len = arguments.length;
     frp.assert((len % 2) === 0);
@@ -197,10 +251,7 @@ function build(/*name1, args1, name2, args2, ...*/) {
     return chain.apply(this, chainArgs);
 }
 
-//
-// exports
-//
-
+// Export.
 frp.iter = {
     'abortLast':  abortLast,
     'chain':      chain,

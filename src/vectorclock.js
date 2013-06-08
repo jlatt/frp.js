@@ -1,3 +1,5 @@
+/* globals frp: false */
+
 function VectorClock() {}
 
 VectorClock.create = function() {

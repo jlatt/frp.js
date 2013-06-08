@@ -1,8 +1,10 @@
+/* globals frp: false */
+
 // If `condition` is falsy, throw an error.
 //
-// condition := Value
-// message := String [optional]
-// throws := Error
+//     condition := Value
+//     message := String [optional]
+//     throws := Error
 function assert(condition, message) {
     if (!condition) {
         throw new Error(message || 'assertion failed');
@@ -13,9 +15,10 @@ function assert(condition, message) {
 // prototype chain, call `makeDefaultValue`, setting it as `key` in `object` and
 // returning it.
 //
-// object := Object
-// key := String
-// makeDefaultValue := function(object, key, makeDefaultValue) Value
+//     object := Object
+//     key := String
+//     makeDefaultValue := function(Object, String, makeDefaultValue) Value
+//     return := Value
 function getDefault(object, key, makeDefaultValue) {
     if (key in object) {
         return object[key];
@@ -27,18 +30,15 @@ function getDefault(object, key, makeDefaultValue) {
 
 // Create a prototypal heir of an object.
 //
-// object := Object
-// returns := Object
+//     object := Object
+//     return := Object
 function heir(object) {
     function Heir() {}
     Heir.prototype = object;
     return new Heir();
 }
 
-//
-// export
-//
-
+// Export.
 frp.assert     = assert;
 frp.getDefault = getDefault;
 frp.heir       = heir;

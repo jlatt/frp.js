@@ -1,5 +1,9 @@
-// Create an event stream. Some streams are hooked to native (external)
-// event handlers. Others must be triggered directly by calling `emit`.
+/* globals frp: false */
+
+// Create an event stream. Some streams are hooked to native (external) event
+// handlers. Others must be triggered directly by calling `emit`.
+//
+//     return := Stream
 function Stream() {
     _.bindAll(this, 'receive');
     this.onEmit   = jQuery.Callbacks('memory unique');
@@ -7,20 +11,27 @@ function Stream() {
     this.cancel   = _.once(this.cancel);
 }
 
+// Wrap the constructor for ease of use.
+//
+//     return := Stream
 Stream.create = function() {
     return new Stream();
 };
 
+// By default, use an identity mapping for incoming events.
 Stream.prototype.iter = frp.iter.identity;
 
+// Receive an event. This function is not usually called directly.
+//
+//     value := Value
 Stream.prototype.receive = function(value) {
     this.iter(value, this.emit);
 };
 
-// Call `onEmit` callbacks with `value`, which is optional.
+// Call `onEmit` callbacks with optional `value`.
 //
-// value := Value
-// return := Stream
+//     value := Value
+//     return := Stream
 Stream.prototype.emit = function(/*value*/) {
     this.onEmit.fireWith(this, arguments);
     return this;
@@ -28,7 +39,7 @@ Stream.prototype.emit = function(/*value*/) {
 
 // Cancel all event emission. Call `onCancel` callbacks.
 //
-// return := Stream
+//     return := Stream
 Stream.prototype.cancel = function() {
     this.onEmit.disable();
     this.onCancel.fireWith(this, [this]);
@@ -37,8 +48,8 @@ Stream.prototype.cancel = function() {
 
 // Send values from this stream to another stream.
 //
-// stream := Stream
-// return := Stream
+//     stream := Stream
+//     return := Stream
 Stream.prototype.sendTo = function(stream) {
     this.onEmit.add(stream.receive);
     return this;
@@ -46,8 +57,8 @@ Stream.prototype.sendTo = function(stream) {
 
 // Stop sending values from this stream to another stream.
 //
-// stream := Stream
-// return := Stream
+//     stream := Stream
+//     return := Stream
 Stream.prototype.unSendTo = function(stream) {
     this.onEmit.remove(stream.receive);
     return this;
@@ -55,16 +66,16 @@ Stream.prototype.unSendTo = function(stream) {
 
 // Return `true` iff this stream sends to the other stream.
 //
-// stream := Stream
-// return := Boolean
+//     stream := Stream
+//     return := Boolean
 Stream.prototype.sendsTo = function(stream) {
     return this.onEmit.has(stream.receive);
 };
 
 // Create a stream that emits events from all argument streams.
 //
-// arguments := Stream, ...[Stream, ...]
-// return := Stream
+//     arguments := nested array(s) of Stream
+//     return := Stream
 Stream.merge = function(/*stream, ...*/) {
     var streams = _.flatten(arguments);
     var merged = this.create();
@@ -72,6 +83,10 @@ Stream.merge = function(/*stream, ...*/) {
     return merged;
 };
 
+// Merge this stream with other streams.
+//
+//     arguments := nested array(s) of Stream
+//     return := Stream
 Stream.prototype.merge = function(/*stream, ...*/) {
     return Stream.merge(this, _.toArray(arguments));
 };
@@ -80,12 +95,12 @@ Stream.prototype.merge = function(/*stream, ...*/) {
 // external event sources
 //
 
-// Create a stream bound to a dom event using jQuery. `selector` is optional.
+// Create a stream bound to a dom event using jQuery.
 //
-// source := jQuery || jQuery.arguments
-// event := String
-// selector := String
-// return := Stream
+//     source := jQuery || arguments to jQuery()
+//     event := String
+//     selector := String [optional]
+//     return := Stream
 Stream.$ = function(source, event, selector) {
     var stream = Stream.create();
     var $source = jQuery(source);
@@ -103,19 +118,20 @@ Stream.$ = function(source, event, selector) {
     return stream;
 };
 
-// Trigger via google maps events. `callback` is optional; by default it
-// emits the first argument to the callback.
+// Trigger via google maps events. `callback` is optional; by default it emits
+// the first argument to the callback.
 //
-// source := google.maps.Object
-// event := String
-// callback := Function
-// return := Stream
+//     source := google.maps.Object
+//     event := String
+//     callback := Function
+//     return := Stream
 Stream.gmap = function(source, event, callback) {
+    /* globals google */
     frp.assert(_.isString(event));
 
     var stream = Stream.create();
     if (!_.isFunction(callback)) {
-        callback = identityEmit;
+        callback = this.emit;
     }
     callback = _.bind(callback, stream);
 
@@ -127,11 +143,12 @@ Stream.gmap = function(source, event, callback) {
     return stream;
 };
 
-// Emit `value` on a regular schedule of `wait` ms.
+// Call `sample` to emit a value every `wait` ms. Very small values of `wait`
+// will produce unexpected behavior.
 //
-// sample := function() Value
-// wait := Number
-// return := Stream
+//     sample := function() Value
+//     wait := Number
+//     return := Stream
 Stream.sample = function(sample, wait) {
     frp.assert(wait > 0);
 
@@ -145,8 +162,5 @@ Stream.sample = function(sample, wait) {
     return stream;
 };
 
-//
-// Export
-//
-
+// Export.
 frp.Stream = Stream;
