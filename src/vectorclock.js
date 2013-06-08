@@ -1,4 +1,4 @@
-function VectorClock() {};
+function VectorClock() {}
 frp.Class.extend(VectorClock);
 
 VectorClock.prototype.clocks = {};

@@ -5,11 +5,11 @@ function getDefault(object, key, defValueFunc) {
     var value = defValueFunc.apply(this, arguments);
     object[key] = value;
     return value;
-};
+}
 
 function Proxy() {
     this.streams = {};
-};
+}
 frp.Class.extend(Proxy);
 
 Proxy.prototype.get = function(id) {

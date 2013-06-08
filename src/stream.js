@@ -6,7 +6,7 @@ function Stream() {
     this.onEmit = jQuery.Callbacks(this.onEmitFlags);
     this.onCancel = jQuery.Callbacks('memory once unique');
     this.cancel = _.once(this.cancel);
-};
+}
 frp.Identifiable.extend(Stream);
 
 Stream.prototype.call = function() {
@@ -82,9 +82,9 @@ Stream.prototype.pipe = function(receive) {
 // functional pipes
 //
 
-var identityEmit = function(value) {
+function identityEmit(value) {
     this.emit(value);
-};
+}
 
 // Emit all incoming events.
 //
@@ -428,17 +428,17 @@ Stream.gmap = function(source, event, callback) {
     return stream;
 };
 
-// Emit `value` on a regular schedule of `wait` ms.
+// Emit the value of `sample()` on a regular schedule of `wait` ms.
 //
-// value := Value
 // wait := Number
+// value := Function
 // return := Stream
-Stream.interval = function(value, wait) {
+Stream.interval = function(wait, sample) {
     frp.assert(wait > 0);
 
     var stream = this.create();
     var handle = setInterval(function() {
-        stream.emit(value);
+        stream.emit(sample());
     }, wait);
     stream.onCancel.add(function() {
         clearInterval(handle);
@@ -450,7 +450,7 @@ Stream.interval = function(value, wait) {
 // after events are emitted.
 function MemoryStream() {
     Stream.call(this);
-};
+}
 Stream.extend(MemoryStream);
 
 MemoryStream.prototype.idPrefix = 'MemoryStream';
