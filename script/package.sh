@@ -4,6 +4,5 @@ cat <<EOF
 'use strict';
 
 $(cat)
-
 }).call(this);
 EOF

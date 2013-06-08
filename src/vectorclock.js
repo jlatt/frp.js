@@ -25,7 +25,7 @@ VectorClock.prototype.descends = function(other) {
 // new clocks
 
 VectorClock.prototype.merge = function(other) {
-    var merged = this.constructor.create();
+    var merged = VectorClock.create();
     merged.clocks = frp.heir(merged.clocks);
     var vclocks = _.chain([this, other]);
     vclocks
@@ -43,7 +43,7 @@ VectorClock.prototype.merge = function(other) {
 };
 
 VectorClock.prototype.increment = function(name) {
-    var incr = this.constructor.create();
+    var incr = VectorClock.create();
     incr.clocks = frp.heir(this.clocks);
     incr.clocks[name] = incr.getClock(name) + 1;
     return incr;
