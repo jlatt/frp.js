@@ -13,7 +13,7 @@ function Proxy() {
 frp.Class.extend(Proxy);
 
 Proxy.prototype.get = function(id) {
-    return getDefault.call(frp.MemoryStream, this.streams, id, frp.MemoryStream.create);
+    return getDefault.call(frp.Stream, this.streams, id, frp.Stream.create);
 };
 
 //

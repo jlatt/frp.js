@@ -1,62 +1,7 @@
-//
-// util
-//
-
-function instanceTest(method, expect, body) {
-    test('prototype.' + method, expect, function() {
-        this.stream = frp.Stream.create();
-        try {
-            body.apply(this, arguments);
-        } finally {
-            this.stream.cancel();
-            delete this.stream;
-        }
-    });
-}
-
-//
-// stream
-//
-
 module('Stream');
 
 test('create', 1, function() {
     ok(frp.Stream.create(), 'create should return a stream');
-});
-
-instanceTest('emit', 1, function() {
-    this.stream.onEmit.add(function() {
-        ok(true, 'should call onEmit callbacks when emit() is called');
-    });
-    this.stream.emit(true);
-});
-
-instanceTest('sendTo', 1, function() {
-    var testValue = 5;
-    var stream2 = frp.Stream.create();
-    stream2.receive = function(value) {
-        strictEqual(value, testValue);
-    };
-    this.stream.sendTo(stream2);
-    this.stream.emit(testValue);
-});
-
-instanceTest('unSendTo', 0, function() {
-    var stream2 = frp.Stream.create();
-    stream2.receive = function() {
-        ok(false);
-    };
-    this.stream.sendTo(stream2);
-    this.stream.unSendTo(stream2);
-    this.stream.emit();
-});
-
-instanceTest('cancel', 1, function() {
-    this.stream.onCancel.add(function() {
-        ok(true);
-    });
-    this.stream.cancel();
-    this.stream.cancel();
 });
 
 test('merge', 5, function() {
@@ -76,7 +21,51 @@ test('merge', 5, function() {
     }, this);
 });
 
-instanceTest('merge', 5, function() {
+module('Stream.prototype', {
+    'setup': function() {
+        this.stream = frp.Stream.create();
+    }
+});
+
+test('emit', 1, function() {
+    this.stream.onEmit.add(function() {
+        ok(true, 'should call onEmit callbacks when emit() is called');
+    });
+    this.stream.emit(true);
+});
+
+test('sendTo', 1, function() {
+    var testValue = 5;
+    var stream2 = frp.Stream.create();
+    stream2.receive = function(value) {
+        strictEqual(value, testValue);
+    };
+    this.stream.sendTo(stream2);
+    this.stream.emit(testValue);
+});
+
+test('unSendTo', 0, function() {
+    var stream2 = frp.Stream.create();
+    stream2.receive = function() {
+        ok(false);
+    };
+    this.stream.sendTo(stream2);
+    this.stream.unSendTo(stream2);
+    this.stream.emit();
+});
+
+test('cancel', 1, function() {
+    this.stream.onEmit.add(function() {
+        ok(false);
+    });
+    this.stream.onCancel.add(function() {
+        ok(true);
+    });
+    this.stream.cancel();
+    this.stream.cancel();
+});
+
+test('merge', 5, function() {
     var streams = [];
     _.times(4, function() {
         streams.push(frp.Stream.create());
