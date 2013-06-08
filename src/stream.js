@@ -51,6 +51,14 @@ Stream.prototype.unSendTo = function(stream) {
     return this;
 };
 
+// Return `true` iff this stream sends to the other stream.
+//
+// stream := Stream
+// return := Boolean
+Stream.prototype.sendsTo = function(stream) {
+    return this.onEmit.has(stream.receive);
+};
+
 // Create a stream that emits events from all argument streams.
 //
 // arguments := Stream, ...[Stream, ...]
@@ -58,12 +66,12 @@ Stream.prototype.unSendTo = function(stream) {
 Stream.merge = function(/*stream, ...*/) {
     var streams = _.flatten(arguments);
     var merged = this.create();
-    _.invoke(streams, 'sendTo', merged.receive);
+    _.invoke(streams, 'sendTo', merged);
     return merged;
 };
 
 Stream.prototype.merge = function(/*stream, ...*/) {
-    return Stream.merge(this, arguments);
+    return Stream.merge(this, _.toArray(arguments));
 };
 
 //

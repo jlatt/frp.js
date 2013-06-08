@@ -2,48 +2,36 @@
 // util
 //
 
-var testIterate = function(testValues, expected, block) {
-    return function() {
-        expect(expected.length);
-        var expectedIndex = 0;
-        var iter = block.call(this);
-        iter.onEmit.add(function(value) {
-            deepEqual(value, expected[expectedIndex]);
-            ++expectedIndex;
-        });
-        _.each(testValues, function(testValue) {
-            this.stream.emit(testValue);
-        }, this);
-    };
-};
-
-var testNotImplemented =  function() {
-    expect(1);
-    ok(false, 'unimplemented');
-};
+function instanceTest(method, expect, body) {
+    test('prototype.' + method, expect, function() {
+        this.stream = frp.Stream.create();
+        try {
+            body.apply(this, arguments);
+        } finally {
+            this.stream.cancel();
+            delete this.stream;
+        }
+    });
+}
 
 //
 // stream
 //
 
-module('Stream', {
-    'setup': function() {
-        this.stream = frp.Stream.create();
-    }
-});
+module('Stream');
 
 test('create', 1, function() {
-    ok(this.stream, 'create should return a stream');
+    ok(frp.Stream.create(), 'create should return a stream');
 });
 
-test('prototype.emit', 1, function() {
+instanceTest('emit', 1, function() {
     this.stream.onEmit.add(function() {
         ok(true, 'should call onEmit callbacks when emit() is called');
     });
     this.stream.emit(true);
 });
 
-test('prototype.sendTo', 1, function() {
+instanceTest('sendTo', 1, function() {
     var testValue = 5;
     var stream2 = frp.Stream.create();
     stream2.receive = function(value) {
@@ -53,7 +41,7 @@ test('prototype.sendTo', 1, function() {
     this.stream.emit(testValue);
 });
 
-test('prototype.unSendTo', 0, function() {
+instanceTest('unSendTo', 0, function() {
     var stream2 = frp.Stream.create();
     stream2.receive = function() {
         ok(false);
@@ -63,7 +51,7 @@ test('prototype.unSendTo', 0, function() {
     this.stream.emit();
 });
 
-test('prototype.cancel', 1, function() {
+instanceTest('cancel', 1, function() {
     this.stream.onCancel.add(function() {
         ok(true);
     });
@@ -71,12 +59,31 @@ test('prototype.cancel', 1, function() {
     this.stream.cancel();
 });
 
-test('merge', testNotImplemented);
+test('merge', 5, function() {
+    var streams = [];
+    _.times(5, function() {
+        streams.push(frp.Stream.create());
+    }, this);
+    var merged = frp.Stream.merge(streams);
 
-test('prototype.merge', testNotImplemented);
+    var expected = _.range(5);
+    merged.onEmit.add(function(value) {
+        strictEqual(value, expected.shift());
+    });
 
-test('$', testNotImplemented);
+    _.each(streams, function(stream, i) {
+        stream.emit(i);
+    }, this);
+});
 
-test('gmap', testNotImplemented);
+instanceTest('merge', 5, function() {
+    var streams = [];
+    _.times(4, function() {
+        streams.push(frp.Stream.create());
+    }, this);
+    var merged = this.stream.merge(streams);
 
-test('interval', testNotImplemented);
+    _.each([this.stream].concat(streams), function(stream) {
+        ok(stream.sendsTo(merged));
+    }, this);
+});
