@@ -28,9 +28,11 @@ Stream.prototype.receive = function(value) {
     this.iter(value, this.emit);
 };
 
-// Call `onEmit` callbacks with optional `value`.
+// Call `onEmit` callbacks with optional `value`. Because of the implementation,
+// all arguments passed will be emitted. It is not recommended to use multiple
+// arguments.
 //
-//     value := Value
+//     value? := Value
 //     return := Stream
 Stream.prototype.emit = function(/*value*/) {
     this.onEmit.fireWith(this, arguments);
@@ -99,9 +101,10 @@ Stream.prototype.merge = function(/*stream, ...*/) {
 //
 //     source := jQuery || arguments to jQuery()
 //     event := String
-//     selector := String [optional]
+//     selector? := String
 //     return := Stream
 Stream.$ = function(source, event, selector) {
+    /* globals jQuery */
     var stream = Stream.create();
     var $source = jQuery(source);
     frp.assert($source.length > 0, 'empty jQuery');
@@ -118,23 +121,17 @@ Stream.$ = function(source, event, selector) {
     return stream;
 };
 
-// Trigger via google maps events. `callback` is optional; by default it emits
-// the first argument to the callback.
+// Trigger via google maps events.
 //
 //     source := google.maps.Object
 //     event := String
-//     callback := Function
 //     return := Stream
 Stream.gmap = function(source, event, callback) {
     /* globals google */
     frp.assert(_.isString(event));
 
     var stream = Stream.create();
-    if (!_.isFunction(callback)) {
-        callback = this.emit;
-    }
-    callback = _.bind(callback, stream);
-
+    var callback = _.bind(stream.emit, stream);
     var listener = google.maps.addListener(source, event, callback);
     stream.onCancel.add(function() {
         google.maps.removeListener(listener);
