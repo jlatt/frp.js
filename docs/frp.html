@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>frp.js</title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, target-densitydpi=160dpi, initial-scale=1.0; maximum-scale=1.0; user-scalable=0;">
+  <link rel="stylesheet" media="all" href="docco.css" />
+</head>
+<body>
+  <div id="container">
+    <div id="background"></div>
+    
+    <ul class="sections">
+        
+          <li id="title">
+              <div class="annotation">
+                  <h1>frp.js</h1>
+              </div>
+          </li>
+        
+        
+        
+        <li id="section-1">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-1">&#182;</a>
+              </div>
+              
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>(<span class="keyword">function</span>() {
+<span class="string">'use strict'</span>;</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-2">
+            <div class="annotation">
+              
+              <div class="pilwrap for-h2">
+                <a class="pilcrow" href="#section-2">&#182;</a>
+              </div>
+              <h2>Type Annotations</h2>
+<pre><code>Name := Type Description</code></pre>
+<p><code>Name?</code> denotes an optional name.</p>
+<h2>Types</h2>
+<pre><code>Value := any Javascript type
+Send := function(Value)
+Iterator := function(Value, Send)</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="keyword">this</span>.frp = {
+    <span class="string">'VERSION'</span>: <span class="string">'1.0'</span>
+};
+<span class="comment">/* globals frp: false */</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-3">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-3">&#182;</a>
+              </div>
+              <p>If <code>condition</code> is falsy, throw an error.</p>
+<pre><code>condition := Value
+message := String [optional]
+throws := Error</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="function"><span class="keyword">function</span> <span class="title">assert</span><span class="params">(condition, message)</span> {</span>
+    <span class="keyword">if</span> (!condition) {
+        <span class="keyword">throw</span> <span class="keyword">new</span> Error(message || <span class="string">'assertion failed'</span>);
+    }
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-4">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-4">&#182;</a>
+              </div>
+              <p>Get a keyed value from an object. If the value is not present in the
+prototype chain, call <code>makeDefaultValue</code>, setting it as <code>key</code> in <code>object</code> and
+returning it.</p>
+<pre><code>object := Object
+key := String
+makeDefaultValue := function(Object, String, makeDefaultValue) Value
+return := Value</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="function"><span class="keyword">function</span> <span class="title">getDefault</span><span class="params">(object, key, makeDefaultValue)</span> {</span>
+    <span class="keyword">if</span> (key <span class="keyword">in</span> object) {
+        <span class="keyword">return</span> object[key];
+    }
+    <span class="keyword">var</span> value = makeDefaultValue.apply(<span class="keyword">this</span>, arguments);
+    object[key] = value;
+    <span class="keyword">return</span> value;
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-5">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-5">&#182;</a>
+              </div>
+              <p>Create a prototypal heir of an object.</p>
+<pre><code>object := Object
+return := Object</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="function"><span class="keyword">function</span> <span class="title">heir</span><span class="params">(object)</span> {</span>
+    <span class="function"><span class="keyword">function</span> <span class="title">Heir</span><span class="params">()</span> {</span>}
+    Heir.prototype = object;
+    <span class="keyword">return</span> <span class="keyword">new</span> Heir();
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-6">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-6">&#182;</a>
+              </div>
+              <p>Export.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>frp.assert     = assert;
+frp.getDefault = getDefault;
+frp.heir       = heir;
+<span class="comment">/* globals frp: false */</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-7">
+            <div class="annotation">
+              
+              <div class="pilwrap for-h2">
+                <a class="pilcrow" href="#section-7">&#182;</a>
+              </div>
+              <h2>Continuation-Style Iterators</h2>
+<p>This is a library of standard iterators for building iteration chains within
+<code>Stream</code>s. Each iterator is a function with the same signature. Some
+functions in this library build iterators, while others are simple iterators
+to be used in a chain.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="keyword">var</span> iter = {};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-8">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-8">&#182;</a>
+              </div>
+              <p>Send every received value.</p>
+<pre><code>value := Value
+send := Send</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.identity = <span class="keyword">function</span>(value, send) {
+    send.call(<span class="keyword">this</span>, value);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-9">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-9">&#182;</a>
+              </div>
+              <p>Map incoming values with <code>func</code>.</p>
+<pre><code>func := function(Value) Value
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.map = <span class="keyword">function</span>(func) {
+    <span class="keyword">return</span> <span class="keyword">function</span>(value, send) {
+        send.call(<span class="keyword">this</span>, func.call(<span class="keyword">this</span>, value));
+    };
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-10">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-10">&#182;</a>
+              </div>
+              <p>Map incoming values by applying <code>value</code> an an arguments array.</p>
+<pre><code>func := function(Value, ...) Value
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.mapApply = <span class="keyword">function</span>(func) {
+    <span class="keyword">return</span> <span class="keyword">function</span>(value, send) {
+        send.call(<span class="keyword">this</span>, func.apply(<span class="keyword">this</span>, value));
+    };
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-11">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-11">&#182;</a>
+              </div>
+              <p>Filter incoming values with <code>func</code>.</p>
+<pre><code>func := function(Value) Boolean
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.filter = <span class="keyword">function</span>(func) {
+    <span class="keyword">return</span> <span class="keyword">function</span>(value, send) {
+        <span class="keyword">if</span> (func.call(<span class="keyword">this</span>, value)) {
+            send.call(<span class="keyword">this</span>, value);
+        }
+    };
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-12">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-12">&#182;</a>
+              </div>
+              <p>Fold over the incoming stream. Call <code>func</code> where <code>current</code> begins with value
+<code>initial</code> and the return value sets <code>current</code> for the next call.</p>
+<pre><code>initial := Value
+func := function(Value, Value) Value
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.fold = <span class="keyword">function</span>(initial, func) {
+    <span class="keyword">var</span> current = initial;
+    <span class="keyword">return</span> <span class="keyword">function</span>(value, send) {
+        current = func.call(<span class="keyword">this</span>, current, value);
+        send.call(<span class="keyword">this</span>, current);
+    };
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-13">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-13">&#182;</a>
+              </div>
+              <p>Chain a list of iterator functions together.</p>
+<pre><code>iterator := Iterator, ...
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.chain = <span class="keyword">function</span>(<span class="comment">/*iterator, ...*/</span>) {
+    <span class="keyword">if</span> (arguments.length === <span class="number">0</span>) {
+        <span class="keyword">return</span> iter.identity;
+    }
+
+    <span class="keyword">if</span> (arguments.length === <span class="number">1</span>) {
+        <span class="keyword">return</span> arguments[<span class="number">0</span>];
+    }
+
+    <span class="keyword">return</span> _.reduceRight(arguments, <span class="keyword">function</span>(next, current) {
+        <span class="keyword">return</span> <span class="keyword">function</span>(value, send) {
+            current.call(<span class="keyword">this</span>, value, <span class="keyword">function</span>(value) {
+                next.call(<span class="keyword">this</span>, value, send);
+            });
+        };
+    }, iter.identity);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-14">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-14">&#182;</a>
+              </div>
+              <p>Send a constant <code>value</code> for every received value.</p>
+<pre><code>value := Value
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.constant = <span class="keyword">function</span>(value) {
+    <span class="keyword">return</span> iter.map(<span class="keyword">function</span>() {
+        <span class="keyword">return</span> value;
+    });
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-15">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-15">&#182;</a>
+              </div>
+              <p>For incoming values, send an array of up to <code>n</code> received values in that
+order.</p>
+<pre><code>n := Number, &gt; 1
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.lastN = <span class="keyword">function</span>(n) {
+    frp.assert(n &gt; <span class="number">1</span>);
+
+    <span class="keyword">return</span> iter.fold([], <span class="keyword">function</span>(values, value) {
+        <span class="keyword">var</span> next = [value].concat(values);
+        next.length = Math.min(next.length, n);
+        <span class="keyword">return</span> next;
+    });
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-16">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-16">&#182;</a>
+              </div>
+              <p>For the first value, call <code>once</code>. Afterwards, call <code>then</code>.</p>
+<pre><code>once, then, return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.onceThen = <span class="keyword">function</span>(once, then) {
+    <span class="keyword">var</span> current = <span class="keyword">function</span>() {
+        once.apply(<span class="keyword">this</span>, arguments);
+        current = then;
+    };
+    <span class="keyword">return</span> <span class="keyword">function</span>() {
+        current.apply(<span class="keyword">this</span>, arguments);
+    };
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-17">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-17">&#182;</a>
+              </div>
+              <p>Only send values unique from the previously received value.</p>
+<pre><code>isEqual? := function(Value, Value) Boolean
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.unique = <span class="keyword">function</span>(isEqual) {
+    <span class="keyword">if</span> (!_.isFunction(isEqual)) {
+        isEqual = _.bind(_.isEqual, _);
+    }
+
+    <span class="keyword">var</span> current;
+    <span class="keyword">var</span> setAndSend = <span class="keyword">function</span>(value, send) {
+        current = value;
+        send.call(<span class="keyword">this</span>, current);
+    };
+    <span class="keyword">return</span> iter.onceThen(setAndSend, <span class="keyword">function</span>(value, send) {
+        <span class="keyword">if</span> (!isEqual.call(<span class="keyword">this</span>, current, value)) {
+            setAndSend.call(<span class="keyword">this</span>, value, send);
+        }
+    });
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-18">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-18">&#182;</a>
+              </div>
+              <p>Send received values until <code>func</code> returns falsy.</p>
+<pre><code>func := function(Value) Boolean
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.takeWhile = <span class="keyword">function</span>(func) {
+    <span class="keyword">var</span> taking = <span class="keyword">function</span>(value, send) {
+        <span class="keyword">if</span> (func.call(<span class="keyword">this</span>, value)) {
+            send.call(<span class="keyword">this</span>, value);
+        } <span class="keyword">else</span> {
+            taking = $.noop;
+        }
+    };
+    <span class="keyword">return</span> <span class="keyword">function</span>() {
+        taking.apply(<span class="keyword">this</span>, arguments);
+    };
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-19">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-19">&#182;</a>
+              </div>
+              <p>Send no received values until <code>func</code> returns falsy.</p>
+<pre><code>func := function(Value) Boolean
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.dropWhile = <span class="keyword">function</span>(func) {
+    <span class="keyword">var</span> dropping = <span class="keyword">function</span>(value, send) {
+        <span class="keyword">if</span> (!func.call(<span class="keyword">this</span>, value)) {
+            dropping = iter.identity;
+            send.call(<span class="keyword">this</span>, value);
+        }
+    };
+    <span class="keyword">return</span> <span class="keyword">function</span>() {
+        dropping.apply(<span class="keyword">this</span>, arguments);
+    };
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-20">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-20">&#182;</a>
+              </div>
+              <p>Send the last value after reeiving no values for <code>wait</code> ms.</p>
+<pre><code>wait := Number
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.debounce = <span class="keyword">function</span>(wait) {
+    <span class="keyword">return</span> _.debounce(iter.identity, wait);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-21">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-21">&#182;</a>
+              </div>
+              <p>Send no more than one value per <code>wait</code> ms.</p>
+<pre><code>wait := Number
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.throttle = <span class="keyword">function</span>(wait) {
+    <span class="keyword">return</span> _.throttle(iter.identity, wait);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-22">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-22">&#182;</a>
+              </div>
+              <p>Send incoming values after a delay of <code>wait</code> ms. This relies on the
+scheduler, so order cannot be guaranteed.</p>
+<pre><code>wait := Number
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.delay = <span class="keyword">function</span>(wait) {
+    <span class="keyword">var</span> handle;
+    <span class="keyword">return</span> <span class="keyword">function</span>(value, send) {
+        _.chain(send).bind(<span class="keyword">this</span>, [value]).delay(wait);
+    };
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-23">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-23">&#182;</a>
+              </div>
+              <p>Turn incoming values into a resolved promise for a value.</p>
+<pre><code>return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.promise = iter.map(<span class="keyword">function</span>() {
+    <span class="keyword">return</span> jQuery.Deferred().resolveWith(<span class="keyword">this</span>, arguments).promise();
+});</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-24">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-24">&#182;</a>
+              </div>
+              <p>Remove promise wrappers. Order is not guaranteed.</p>
+<pre><code>promise := $.Deferred
+send := function(Value)</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.unpromise = <span class="keyword">function</span>(promise, send) {
+    promise.done(send);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-25">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-25">&#182;</a>
+              </div>
+              <p>Call <code>abort</code> on the previous value sent when sending a new value.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.abortLast = iter.chain(
+    iter.lastN(<span class="number">2</span>),
+    iter.mapApply(<span class="keyword">function</span>(current, last) {
+        <span class="keyword">if</span> (arguments.length &gt; <span class="number">1</span>) {
+            last.abort();
+        }
+        <span class="keyword">return</span> current;
+    }));</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-26">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-26">&#182;</a>
+              </div>
+              <p>Map promises through a filter. Order is not guaranteed.</p>
+<pre><code>return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.mapPromise = <span class="keyword">function</span>(done) {
+    <span class="keyword">return</span> iter.map(<span class="keyword">function</span>(promise) {
+        <span class="keyword">return</span> promise.then(done);
+    });
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-27">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-27">&#182;</a>
+              </div>
+              <p>Build an iterator. Pass an even number of arguments, alternating between the
+name of an iterator in <code>frp.iter</code> and an array of arguments.</p>
+<pre><code>arguments := String, Array, String, Array, ...
+return := Iterator</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.build = <span class="keyword">function</span>(<span class="comment">/*name1, args1, name2, args2, ...*/</span>) {
+    <span class="keyword">var</span> len = arguments.length;
+    frp.assert((len % <span class="number">2</span>) === <span class="number">0</span>);
+
+    <span class="keyword">var</span> chainArgs = [];
+    <span class="keyword">for</span> (<span class="keyword">var</span> i = <span class="number">0</span>; i &lt; len; i += <span class="number">2</span>) {
+        <span class="keyword">var</span> name = arguments[i];
+        <span class="keyword">var</span> args = arguments[i + <span class="number">1</span>];
+        chainArgs.push(frp.iter[name].apply(<span class="keyword">this</span>, args));
+    }
+    <span class="keyword">return</span> iter.chain.apply(<span class="keyword">this</span>, chainArgs);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-28">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-28">&#182;</a>
+              </div>
+              <p>Export.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>frp.iter = iter;
+<span class="comment">/* globals frp: false */</span>
+
+<span class="function"><span class="keyword">function</span> <span class="title">VectorClock</span><span class="params">()</span> {</span>}
+
+VectorClock.create = <span class="keyword">function</span>() {
+    <span class="keyword">return</span> <span class="keyword">new</span> VectorClock();
+};
+
+VectorClock.prototype.clocks = {};
+
+<span class="function"><span class="keyword">function</span> <span class="title">returnZero</span><span class="params">()</span> {</span>
+    <span class="keyword">return</span> <span class="number">0</span>;
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-29">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-29">&#182;</a>
+              </div>
+              <p>Get the value of a key in the clock. Returns an integer &gt;= 0.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>VectorClock.prototype.getClock = <span class="keyword">function</span>(key) {
+    <span class="keyword">return</span> frp.getDefault.call(<span class="keyword">this</span>, <span class="keyword">this</span>.clocks, key, returnZero);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-30">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-30">&#182;</a>
+              </div>
+              <p>Return <code>true</code> iff this clock is a descendant of <code>other</code>.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>VectorClock.prototype.descends = <span class="keyword">function</span>(other) {
+    <span class="keyword">return</span> _.all(other.clocks, <span class="keyword">function</span>(value, key) {
+        <span class="keyword">return</span> <span class="keyword">this</span>.getClock(key) &gt;= value;
+    }, <span class="keyword">this</span>);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-31">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-31">&#182;</a>
+              </div>
+              <p>new clocks</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>VectorClock.prototype.merge = <span class="keyword">function</span>(other) {
+    <span class="keyword">var</span> merged = VectorClock.create();
+    merged.clocks = frp.heir(merged.clocks);
+    <span class="keyword">var</span> vclocks = _.chain([<span class="keyword">this</span>, other]);
+    vclocks
+        .pluck(<span class="string">'clocks'</span>)
+        .map(_.keys)
+        .union()
+        .sort()
+        .uniq(<span class="comment">/*sorted=*/</span><span class="literal">true</span>)
+        .each(<span class="keyword">function</span>(key) {
+            merged.clocks[key] = vclocks
+                .invoke(<span class="string">'getClock'</span>, key)
+                .max()
+                .value();
+        }, <span class="keyword">this</span>);
+};
+
+VectorClock.prototype.increment = <span class="keyword">function</span>(name) {
+    <span class="keyword">var</span> incr = VectorClock.create();
+    incr.clocks = frp.heir(<span class="keyword">this</span>.clocks);
+    incr.clocks[name] = incr.getClock(name) + <span class="number">1</span>;
+    <span class="keyword">return</span> incr;
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-32">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-32">&#182;</a>
+              </div>
+              <p>export</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>frp.VectorClock = VectorClock;
+<span class="comment">/* globals frp: false */</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-33">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-33">&#182;</a>
+              </div>
+              <p>Create an event stream. Some streams are hooked to native (external) event
+handlers. Others must be triggered directly by calling <code>emit</code>.</p>
+<pre><code>return := Stream</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="function"><span class="keyword">function</span> <span class="title">Stream</span><span class="params">()</span> {</span>
+    _.bindAll(<span class="keyword">this</span>, <span class="string">'receive'</span>);
+    <span class="keyword">this</span>.onEmit   = jQuery.Callbacks(<span class="string">'memory unique'</span>);
+    <span class="keyword">this</span>.onCancel = jQuery.Callbacks(<span class="string">'memory once unique'</span>);
+    <span class="keyword">this</span>.cancel   = _.once(<span class="keyword">this</span>.cancel);
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-34">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-34">&#182;</a>
+              </div>
+              <p>Wrap the constructor for ease of use.</p>
+<pre><code>return := Stream</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.create = <span class="keyword">function</span>() {
+    <span class="keyword">return</span> <span class="keyword">new</span> Stream();
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-35">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-35">&#182;</a>
+              </div>
+              <p>By default, use an identity mapping for incoming events.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.prototype.iter = frp.iter.identity;</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-36">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-36">&#182;</a>
+              </div>
+              <p>Receive an event. This function is not usually called directly.</p>
+<pre><code>value := Value</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.prototype.receive = <span class="keyword">function</span>(value) {
+    <span class="keyword">this</span>.iter(value, <span class="keyword">this</span>.emit);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-37">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-37">&#182;</a>
+              </div>
+              <p>Call <code>onEmit</code> callbacks with optional <code>value</code>. Because of the implementation,
+all arguments passed will be emitted. It is not recommended to use multiple
+arguments.</p>
+<pre><code>value? := Value
+return := Stream</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.prototype.emit = <span class="keyword">function</span>(<span class="comment">/*value*/</span>) {
+    <span class="keyword">this</span>.onEmit.fireWith(<span class="keyword">this</span>, arguments);
+    <span class="keyword">return</span> <span class="keyword">this</span>;
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-38">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-38">&#182;</a>
+              </div>
+              <p>Cancel all event emission. Call <code>onCancel</code> callbacks.</p>
+<pre><code>return := Stream</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.prototype.cancel = <span class="keyword">function</span>() {
+    <span class="keyword">this</span>.onEmit.disable();
+    <span class="keyword">this</span>.onCancel.fireWith(<span class="keyword">this</span>, [<span class="keyword">this</span>]);
+    <span class="keyword">return</span> <span class="keyword">this</span>;
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-39">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-39">&#182;</a>
+              </div>
+              <p>Send values from this stream to another stream.</p>
+<pre><code>stream := Stream
+return := Stream</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.prototype.sendTo = <span class="keyword">function</span>(stream) {
+    <span class="keyword">this</span>.onEmit.add(stream.receive);
+    <span class="keyword">return</span> <span class="keyword">this</span>;
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-40">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-40">&#182;</a>
+              </div>
+              <p>Stop sending values from this stream to another stream.</p>
+<pre><code>stream := Stream
+return := Stream</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.prototype.unSendTo = <span class="keyword">function</span>(stream) {
+    <span class="keyword">this</span>.onEmit.remove(stream.receive);
+    <span class="keyword">return</span> <span class="keyword">this</span>;
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-41">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-41">&#182;</a>
+              </div>
+              <p>Return <code>true</code> iff this stream sends to the other stream.</p>
+<pre><code>stream := Stream
+return := Boolean</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.prototype.sendsTo = <span class="keyword">function</span>(stream) {
+    <span class="keyword">return</span> <span class="keyword">this</span>.onEmit.has(stream.receive);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-42">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-42">&#182;</a>
+              </div>
+              <p>Create a stream that emits events from all argument streams.</p>
+<pre><code>arguments := nested array(s) of Stream
+return := Stream</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.merge = <span class="keyword">function</span>(<span class="comment">/*stream, ...*/</span>) {
+    <span class="keyword">var</span> streams = _.flatten(arguments);
+    <span class="keyword">var</span> merged = <span class="keyword">this</span>.create();
+    _.invoke(streams, <span class="string">'sendTo'</span>, merged);
+    <span class="keyword">return</span> merged;
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-43">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-43">&#182;</a>
+              </div>
+              <p>Merge this stream with other streams.</p>
+<pre><code>arguments := nested array(s) of Stream
+return := Stream</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.prototype.merge = <span class="keyword">function</span>(<span class="comment">/*stream, ...*/</span>) {
+    <span class="keyword">return</span> Stream.merge(<span class="keyword">this</span>, _.toArray(arguments));
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-44">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-44">&#182;</a>
+              </div>
+              <p>external event sources</p>
+<p>Create a stream bound to a dom event using jQuery.</p>
+<pre><code>source := jQuery || arguments to jQuery()
+event := String
+selector? := String
+return := Stream</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.$ = <span class="keyword">function</span>(source, event, selector) {
+    <span class="comment">/* globals jQuery */</span>
+    <span class="keyword">var</span> stream = Stream.create();
+    <span class="keyword">var</span> $source = jQuery(source);
+    frp.assert($source.length &gt; <span class="number">0</span>, <span class="string">'empty jQuery'</span>);
+    <span class="keyword">var</span> args = Array.prototype.slice.call(arguments, <span class="number">1</span>);
+    args.push(<span class="keyword">function</span>(e) {
+        stream.emit(e);
+    });
+
+    $source.on.apply($source, args);
+    stream.onCancel.add(<span class="keyword">function</span>() {
+        $source.off.apply($source, args);
+    });
+
+    <span class="keyword">return</span> stream;
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-45">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-45">&#182;</a>
+              </div>
+              <p>Trigger via google maps events.</p>
+<pre><code>source := google.maps.Object
+event := String
+return := Stream</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.gmap = <span class="keyword">function</span>(source, event, callback) {
+    <span class="comment">/* globals google */</span>
+    frp.assert(_.isString(event));
+
+    <span class="keyword">var</span> stream = Stream.create();
+    <span class="keyword">var</span> callback = _.bind(stream.emit, stream);
+    <span class="keyword">var</span> listener = google.maps.addListener(source, event, callback);
+    stream.onCancel.add(<span class="keyword">function</span>() {
+        google.maps.removeListener(listener);
+    });
+
+    <span class="keyword">return</span> stream;
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-46">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-46">&#182;</a>
+              </div>
+              <p>Call <code>sample</code> to emit a value every <code>wait</code> ms. Very small values of <code>wait</code>
+will produce unexpected behavior.</p>
+<pre><code>sample := function() Value
+wait := Number
+return := Stream</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Stream.sample = <span class="keyword">function</span>(sample, wait) {
+    frp.assert(wait &gt; <span class="number">0</span>);
+
+    <span class="keyword">var</span> stream = Stream.create();
+    <span class="keyword">var</span> handle = setInterval(<span class="keyword">function</span>() {
+        stream.emit(sample());
+    }, wait);
+    stream.onCancel.add(<span class="keyword">function</span>() {
+        clearInterval(handle);
+    });
+    <span class="keyword">return</span> stream;
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-47">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-47">&#182;</a>
+              </div>
+              <p>Export.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>frp.Stream = Stream;
+<span class="comment">/* globals frp: false */</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-48">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-48">&#182;</a>
+              </div>
+              <p><code>Proxy</code> is a dictionary of named streams. It provides indirection between
+streams that are connected out of order with when they are created.</p>
+<pre><code>return := Proxy</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="function"><span class="keyword">function</span> <span class="title">Proxy</span><span class="params">()</span> {</span>
+    <span class="keyword">this</span>.streams = {};
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-49">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-49">&#182;</a>
+              </div>
+              <p>Provide a non-<code>new</code> way of constructing instances.
+    return := Proxy</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Proxy.create = <span class="keyword">function</span>() {
+    <span class="keyword">return</span> <span class="keyword">new</span> Proxy();
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-50">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-50">&#182;</a>
+              </div>
+              <p>Get a stream by name, creating it iff it does not yet exist.</p>
+<p>name := String
+return := Stream</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Proxy.prototype.get = <span class="keyword">function</span>(name) {
+    <span class="keyword">return</span> frp.getDefault.call(frp.Stream, <span class="keyword">this</span>.streams, name,
+                               frp.Stream.create);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-51">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-51">&#182;</a>
+              </div>
+              <p>Export.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>frp.Proxy = Proxy;
+}).call(<span class="keyword">this</span>);</pre></div></div>
+            
+        </li>
+        
+    </ul>
+  </div>
+</body>
+</html>
