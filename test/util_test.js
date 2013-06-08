@@ -14,21 +14,6 @@ test('create', 2, function() {
 });
 
 //
-// identifiable
-//
-
-module('Identifiable', {
-    'setup': function() {
-        this.identifiable = frp.Identifiable.create();
-    }
-});
-
-test('create', 2, function() {
-    ok(this.identifiable);
-    ok(this.identifiable.id);
-});
-
-//
 // id set
 //
 
@@ -45,6 +30,6 @@ test('create', 1, function() {
 //
 // callable interface
 //
-  
-// currently unused 
+
+// currently unused
 module('Callable');

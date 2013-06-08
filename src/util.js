@@ -26,16 +26,10 @@ Class.extend = function(Target) {
     return this;
 };
 
-//
-// identifiable
-//
-
-function Identifiable() {
-    this.id = _.uniqueId(this.idPrefix);
-}
-Class.extend(Identifiable);
-
-Identifiable.prototype.idPrefix = 'Id';
+// object := Object
+Class.prototype.extend = function(/*object, ...*/) {
+    return _.extend.apply(_, [this].concat(arguments));
+};
 
 //
 // set based on id
@@ -105,7 +99,6 @@ function heir(object) {
 frp.AssertError  = AssertError;
 frp.assert       = assert;
 frp.Class        = Class;
-frp.Identifiable = Identifiable;
 frp.IdSet        = IdSet;
 frp.Callable     = Callable;
 frp.heir         = heir;

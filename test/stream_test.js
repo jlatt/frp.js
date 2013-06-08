@@ -71,96 +71,9 @@ test('prototype.cancel', 1, function() {
     this.stream.cancel();
 });
 
-test('prototype.pipe', 1, function() {
-    var piped = this.stream.pipe(function() {
-        ok(true);
-    });
-    this.stream.emit();
-});
-
-test('prototype.identity', 1, function() {
-    var testValue = 5;
-    var ident = this.stream.identity();
-    ident.onEmit.add(function(value) {
-        strictEqual(value, testValue);
-    })
-    this.stream.emit(testValue);
-});
-
-test('prototype.constant', 1, function() {
-    var testValue = true;
-    var constant = this.stream.constant(testValue);
-    constant.onEmit.add(function(value) {
-        strictEqual(value, testValue);
-    });
-    this.stream.emit();
-});
-
-test('prototype.map', testIterate([5, 6, 7], [15, 18, 21], function() {
-    return this.stream.map(function(value) {
-        return value * 3;
-    });
-}));
-
-test('prototype.filter', testIterate([1, 2, 3, 4], [1, 3], function() {
-    return this.stream.filter(function(value) {
-        return !!(value % 2);
-    });
-}));
-
-test('prototype.fold', testIterate([1, 2, 3, 4], [1, 3, 6, 10], function() {
-    return this.stream.fold(function(value, lastValue) {
-        return value + lastValue;
-    }, 0);
-}));
-
-test('prototype.takeWhile', testIterate([1, 2, 3, 4, 5], [1, 2, 3], function() {
-    return this.stream.takeWhile(function(value) {
-        return value < 4;
-    });
-}));
-
-test('prototype.dropWhile', testIterate([1, 2, 3, 4, 5], [4, 5], function() {
-    return this.stream.dropWhile(function(value) {
-        return value < 4;
-    });
-}));
-
-test('prototype.unique', testIterate([1, 2, 3, 3, 3, 4, 4], [1, 2, 3, 4], function() {
-    return this.stream.unique();
-}));
-
-test('prototype.lastN', testIterate([1, 2, 3, 4, 5], [[1], [1, 2], [1, 2, 3], [2, 3, 4], [3, 4, 5]], function() {
-    return this.stream.lastN(3);
-}));
-
-test('prototype.unpack', testIterate([[1, 2, 3], [4, 5, 6], [7, 8, 9]], [0, 3, 6], function() {
-    return this.stream.unpack(function(a, b, c) {
-        this.emit((a + b) - c);
-    });
-}));
-
-test('prototype.debounce', testNotImplemented);
-
-test('prototype.throttle', testNotImplemented);
-
-test('prototype.delay', testNotImplemented);
-
-test('prototype.promise', testNotImplemented);
-
-test('prototype.unpromise', testNotImplemented);
-
-test('prototype.pipePromise', testNotImplemented);
-
-test('prototype.abortPrevious', testNotImplemented);
-
 test('merge', testNotImplemented);
 
 test('prototype.merge', testNotImplemented);
-
-test('switcher', testNotImplemented);
-
-test('prototype.switcher', testNotImplemented);
 
 test('$', testNotImplemented);
 

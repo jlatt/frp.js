@@ -1,50 +1,26 @@
 // Create an event stream. Some streams are hooked to native (external)
 // event handlers. Others must be triggered directly by calling `emit`.
-function Stream(iter, emitFlags) {
-    frp.Identifiable.call(this);
-    _.bindAll(this, 'call');
-    this.onEmit   = jQuery.Callbacks(emitFlags);
-    this.onCancel = jQuery.Callbacks(this.onCancelFlags);
+function Stream() {
+    _.bindAll(this, 'receive');
+    this.onEmit   = jQuery.Callbacks('memory unique');
+    this.onCancel = jQuery.Callbacks('memory once unique');
     this.cancel   = _.once(this.cancel);
-    this.iter     = iter;
 }
-frp.Identifiable.extend(Stream);
 
-Stream.prototype.call = function() {
-    this.receive.apply(this, arguments);
+frp.Class.extend(Stream);
+
+Stream.prototype.iter = frp.iter.identity;
+
+Stream.prototype.receive = function(value) {
+    this.iter(value, this.emit);
 };
-
-Stream.prototype.idPrefix      = 'Stream';
-Stream.prototype.onCancelFlags = 'memory once unique';
 
 // Call `onEmit` callbacks with `value`, which is optional.
 //
 // value := Value
 // return := Stream
-Stream.prototype.emit = function(value) {
-    this.onEmit.fireWith(this, [value, this]);
-    return this;
-};
-
-// Add a stream to this stream's emitter callbacks.
-//
-// callable := Callable
-// return := Stream
-Stream.prototype.sendTo = function(stream) {
-    frp.assert(!!stream && _.isFunction(stream.call));
-
-    this.onEmit.add(stream.call);
-    return this;
-};
-
-// Remove a stream from this stream's emitter callbacks.
-//
-// stream := Stream
-// return := Stream
-Stream.prototype.unSendTo = function(stream) {
-    frp.assert(!!stream && _.isFunction(stream.call));
-
-    this.onEmit.remove(stream.call);
+Stream.prototype.emit = function(/*value*/) {
+    this.onEmit.fireWith(this, arguments);
     return this;
 };
 
@@ -52,26 +28,28 @@ Stream.prototype.unSendTo = function(stream) {
 //
 // return := Stream
 Stream.prototype.cancel = function() {
-    this.onCancel.fireWith(this, [this]);
     this.onEmit.disable();
+    this.onCancel.fireWith(this, [this]);
     return this;
 };
 
-// Receive an event.
+// Send values from this stream to another stream.
 //
-// value := Value
-// fromStream := Stream
-Stream.prototype.receive = function(value, fromStream) {
-    var stream = this;
-    this.iter(value, function(value) {
-        stream.emit(value);
-    });
+// stream := Stream
+// return := Stream
+Stream.prototype.sendTo = function(stream) {
+    this.onEmit.add(stream.receive);
+    return this;
 };
 
+// Stop sending values from this stream to another stream.
 //
-// FRP streams
-// I still don't understand what switcher is for.
-//
+// stream := Stream
+// return := Stream
+Stream.prototype.unSendTo = function(stream) {
+    this.onEmit.remove(stream.receive);
+    return this;
+};
 
 // Create a stream that emits events from all argument streams.
 //
@@ -80,37 +58,12 @@ Stream.prototype.receive = function(value, fromStream) {
 Stream.merge = function(/*stream, ...*/) {
     var streams = _.flatten(arguments);
     var merged = this.create();
-    _.invoke(streams, 'sendTo', merged);
+    _.invoke(streams, 'sendTo', merged.receive);
     return merged;
 };
 
 Stream.prototype.merge = function(/*stream, ...*/) {
     return Stream.merge(this, arguments);
-};
-
-// Create a stream that emits events from the stream that is the most recent
-// event of the argument streams. These streams all themselves return streams.
-//
-// arguments := Stream.merge.arguments
-// return := Stream
-Stream.switcher = function(/*stream, ...*/) {
-    var switcher = this.create();
-    var current = null;
-    var merged = Stream.merge(arguments);
-    merged.receive = function(stream) {
-        if (current !== stream) {
-            if (current !== null) {
-                current.unSendTo(switcher);
-            }
-            stream.sendTo(switcher);
-            current = stream;
-        }
-    };
-    return switcher;
-};
-
-Stream.prototype.switcher = function(/*stream, ...*/) {
-    return this.constructor.switcher(this, arguments);
 };
 
 //
@@ -166,15 +119,15 @@ Stream.gmap = function(source, event, callback) {
 
 // Emit `value` on a regular schedule of `wait` ms.
 //
-// value := Value
+// sample := function() Value
 // wait := Number
 // return := Stream
-Stream.interval = function(value, wait) {
+Stream.sample = function(sample, wait) {
     frp.assert(wait > 0);
 
     var stream = this.create();
     var handle = setInterval(function() {
-        stream.emit(value);
+        stream.emit(sample());
     }, wait);
     stream.onCancel.add(function() {
         clearInterval(handle);
@@ -186,4 +139,4 @@ Stream.interval = function(value, wait) {
 // Export
 //
 
-frp.Stream       = Stream;
+frp.Stream = Stream;

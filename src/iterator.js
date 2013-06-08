@@ -176,6 +176,28 @@ function mapPromise(done) {
 }
 
 //
+// convenience
+//
+
+// Build an iterator.
+//
+// nameN := String
+// argsN := Array
+// return := function(value, send)
+function build(/*name1, args1, name2, args2, ...*/) {
+    var len = arguments.length;
+    frp.assert((len % 2) === 0);
+
+    var chainArgs = [];
+    for (var i = 0; i < len; i += 2) {
+        var name = arguments[i];
+        var args = arguments[i + 1];
+        chainArgs.push(frp.iter[name].apply(this, args));
+    }
+    return chain.apply(this, chainArgs);
+}
+
+//
 // exports
 //
 
