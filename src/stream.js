@@ -20,6 +20,16 @@ Stream.create = function() {
     return new Stream();
 };
 
+// Extend the instance with arbitrary properties. This can be used to set the
+// iterator or override other properties. e.g. `stream.extend({'iter':
+// frp.iter.map(Math.sqrt)});`
+//
+//     object := Object
+//     return := this
+Stream.prototype.extend = function(/*object, ...*/) {
+    return _.extend.apply(_, [this].concat(arguments));
+};
+
 // By default, use an identity mapping for incoming events. Set `iter` to any
 // `Iterator` to modify the incoming event stream.
 Stream.prototype.iter = frp.iter.identity;
@@ -36,7 +46,7 @@ Stream.prototype.receive = function(value) {
 // arguments.
 //
 //     value? := Value
-//     return := Stream
+//     return := this
 Stream.prototype.emit = function(/*value*/) {
     this.onEmit.fireWith(this, arguments);
     return this;
@@ -54,7 +64,7 @@ Stream.prototype.cancel = function() {
 // Send values from this stream to another stream.
 //
 //     stream := Stream
-//     return := Stream
+//     return := this
 Stream.prototype.sendTo = function(stream) {
     this.onEmit.add(stream.receive);
     return this;
@@ -63,7 +73,7 @@ Stream.prototype.sendTo = function(stream) {
 // Stop sending values from this stream to another stream.
 //
 //     stream := Stream
-//     return := Stream
+//     return := this
 Stream.prototype.unSendTo = function(stream) {
     this.onEmit.remove(stream.receive);
     return this;
