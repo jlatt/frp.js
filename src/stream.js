@@ -1,3 +1,5 @@
+// Event Streams
+// -------------
 /* globals frp: false */
 
 // Create an event stream. Some streams are hooked to native (external) event
@@ -18,7 +20,8 @@ Stream.create = function() {
     return new Stream();
 };
 
-// By default, use an identity mapping for incoming events.
+// By default, use an identity mapping for incoming events. Set `iter` to any
+// `Iterator` to modify the incoming event stream.
 Stream.prototype.iter = frp.iter.identity;
 
 // Receive an event. This function is not usually called directly.
@@ -93,9 +96,8 @@ Stream.prototype.merge = function(/*stream, ...*/) {
     return Stream.merge(this, _.toArray(arguments));
 };
 
-//
-// external event sources
-//
+// External Event Sources
+// ----------------------
 
 // Create a stream bound to a dom event using jQuery.
 //

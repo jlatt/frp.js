@@ -1,4 +1,10 @@
-/* globals frp: false */
+// Vector Clocks
+// -------------
+//
+// [Vector Clocks](http://en.wikipedia.org/wiki/Vector_clock) provide event
+// ordering without requiring time-based synchronization between multiple
+// threads of execution.
+/* globals frp */
 
 // Create a new vector clock.
 function VectorClock() {}

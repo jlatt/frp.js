@@ -1,4 +1,6 @@
-/* globals frp: false */
+// Utility Functions
+// -----------------
+/* globals frp */
 
 // If `condition` is falsy, throw an error.
 //

@@ -1,7 +1,12 @@
-/* globals frp: false */
+// Stream Proxy
+// ------------
+//
+// Sometimes an event source is available before a sink or vice-versa. `Proxy`
+// helps by providing named `Stream`s that can be chained as sources or sinks of
+// particular values.
+/* globals frp */
 
-// `Proxy` is a dictionary of named streams. It provides indirection between
-// streams that are connected out of order with when they are created.
+// Make a `Proxy`
 //
 //     return := Proxy
 function Proxy() {
@@ -16,8 +21,8 @@ Proxy.create = function() {
 
 // Get a stream by name, creating it iff it does not yet exist.
 //
-// name := String
-// return := Stream
+//     name := String
+//     return := Stream
 Proxy.prototype.get = function(name) {
     return frp.getDefault.call(frp.Stream, this.streams, name,
                                frp.Stream.create);

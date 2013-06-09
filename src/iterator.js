@@ -1,11 +1,12 @@
-/* globals frp: false */
-
-// ## Continuation-Style Iterators
+// Continuation-Style Iterators
+// ----------------------------
 //
 // This is a library of standard iterators for building iteration chains within
 // `Stream`s. Each iterator is a function with the same signature. Some
 // functions in this library build iterators, while others are simple iterators
 // to be used in a chain.
+
+/* globals frp */
 var iter = {};
 
 // Send every received value.
@@ -219,7 +220,9 @@ iter.unpromise = function(promise, send) {
     promise.done(send);
 };
 
-// Call `abort` on the previous value sent when sending a new value.
+// Call `abort` on the previous value sent when sending a new value. This
+// iterator can be used in a stream of XHRs to cancel the currently running XHR
+// when receiving a new one.
 iter.abortLast = iter.chain(
     iter.lastN(2),
     iter.mapApply(function(current, last) {
