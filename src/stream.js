@@ -45,9 +45,9 @@ Stream.prototype.receive = function(value) {
 // all arguments passed will be emitted. It is not recommended to use multiple
 // arguments.
 //
-//     value? := Value
+//     value := Value
 //     return := this
-Stream.prototype.emit = function(/*value*/) {
+Stream.prototype.emit = function(/*value?*/) {
     this.onEmit.fireWith(this, arguments);
     return this;
 };
@@ -113,9 +113,9 @@ Stream.prototype.merge = function(/*stream, ...*/) {
 //
 //     source := jQuery || arguments to jQuery()
 //     event := String
-//     selector? := String
+//     selector := String
 //     return := Stream
-Stream.$ = function(source, event, selector) {
+Stream.$ = function(source, event, selector/*?*/) {
     /* globals jQuery */
     var stream = Stream.create();
     var $source = jQuery(source);

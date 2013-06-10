@@ -5,9 +5,9 @@
 // If `condition` is falsy, throw an error.
 //
 //     condition := Value
-//     message := String [optional]
+//     message := String
 //     throws := Error
-function assert(condition, message) {
+function assert(condition, message/*?*/) {
     if (!condition) {
         throw new Error(message || 'assertion failed');
     }

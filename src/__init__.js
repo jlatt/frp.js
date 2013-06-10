@@ -5,14 +5,28 @@
 // Type Annotations
 // ----------------
 //
+// Annotations take the format
+//
 //     Name := Type Description
 //
-// `Name?` denotes an optional name.
+// - `:=` means "has type".
+// - `Type, ...` denotes a variable-length array of `Type`s
+// - `||` denotes a union of two type definitions
 //
-// Types
-// -----
+// Parameter Annotations
+// ---------------------
 //
-//     Value := any Javascript type
+// These annotations appear inline in the parameter description for a
+// function. They always use the multiline comment syntax (`/* */`) so that they
+// can be interpolated between parameter definitions.
+//
+// - `?` denotes an optional parameter.
+// - `, ...` denotes variable arguments
+//
+// General Types
+// -------------
+//
+//     Value := Object || String || Number || Boolean || RegExp
 //     Send := function(Value)
 //     Iterator := function(Value, Send)
 

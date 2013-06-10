@@ -133,9 +133,9 @@ iter.onceThen = function(once, then) {
 
 // Only send values unique from the previously received value.
 //
-//     isEqual? := function(Value, Value) Boolean
+//     isEqual := function(Value, Value) Boolean
 //     return := Iterator
-iter.unique = function(isEqual) {
+iter.unique = function(isEqual/*?*/) {
     if (!_.isFunction(isEqual)) {
         isEqual = _.bind(_.isEqual, _);
     }
