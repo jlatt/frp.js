@@ -13,18 +13,20 @@ var iter = {};
 //
 //     value := Value
 //     send := Send
-iter.identity = function(value, send) {
+function identity(value, send) {
     send.call(this, value);
-};
+}
+iter.identity = identity;
 
 // Map incoming values with `func`.
 //
 //     func := function(Value) Value
 //     return := Iterator
 iter.map = function(func) {
-    return function(value, send) {
+    function map(value, send) {
         send.call(this, func.call(this, value));
-    };
+    }
+    return map;
 };
 
 // Map incoming values by applying `value` an an arguments array.
@@ -32,9 +34,10 @@ iter.map = function(func) {
 //     func := function(Value, ...) Value
 //     return := Iterator
 iter.mapApply = function(func) {
-    return function(value, send) {
+    function mapApply(value, send) {
         send.call(this, func.apply(this, value));
-    };
+    }
+    return mapApply;
 };
 
 // Filter incoming values with `func`.
@@ -42,11 +45,12 @@ iter.mapApply = function(func) {
 //     func := function(Value) Boolean
 //     return := Iterator
 iter.filter = function(func) {
-    return function(value, send) {
+    function filter(value, send) {
         if (func.call(this, value)) {
             send.call(this, value);
         }
-    };
+    }
+    return filter;
 };
 
 // Fold over the incoming stream. Call `func` where `current` begins with value
@@ -57,15 +61,17 @@ iter.filter = function(func) {
 //     return := Iterator
 iter.fold = function(initial, func) {
     var current = initial;
-    return function(value, send) {
+    function fold(value, send) {
         current = func.call(this, current, value);
         send.call(this, current);
-    };
+    }
+    return fold;
 };
 
-// Chain a list of iterator functions together.
+// Chain a list of iterator functions together. Each iterator is applied in
+// sequence.
 //
-//     iterator := Iterator, ...
+//     iterator := Iterator
 //     return := Iterator
 iter.chain = function(/*iterator, ...*/) {
     if (arguments.length === 0) {
@@ -77,11 +83,12 @@ iter.chain = function(/*iterator, ...*/) {
     }
 
     return _.reduceRight(arguments, function(next, current) {
-        return function(value, send) {
+        function chain(value, send) {
             current.call(this, value, function(value) {
                 next.call(this, value, send);
             });
-        };
+        }
+        return chain;
     }, iter.identity);
 };
 
@@ -118,9 +125,10 @@ iter.onceThen = function(once, then) {
         once.apply(this, arguments);
         current = then;
     };
-    return function() {
+    function onceThen() {
         current.apply(this, arguments);
-    };
+    }
+    return onceThen;
 };
 
 // Only send values unique from the previously received value.
@@ -156,9 +164,10 @@ iter.takeWhile = function(func) {
             taking = $.noop;
         }
     };
-    return function() {
+    function takeWhile() {
         taking.apply(this, arguments);
-    };
+    }
+    return takeWhile;
 };
 
 // Send no received values until `func` returns falsy.
@@ -172,9 +181,10 @@ iter.dropWhile = function(func) {
             send.call(this, value);
         }
     };
-    return function() {
+    function dropWhile() {
         dropping.apply(this, arguments);
-    };
+    }
+    return dropWhile;
 };
 
 // Send the last value after reeiving no values for `wait` ms.
@@ -200,9 +210,10 @@ iter.throttle = function(wait) {
 //     return := Iterator
 iter.delay = function(wait) {
     var handle;
-    return function(value, send) {
+    function delay(value, send) {
         _.chain(send).bind(this, [value]).delay(wait);
-    };
+    }
+    return delay;
 };
 
 // Turn incoming values into a resolved promise for a value.
