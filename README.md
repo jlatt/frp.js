@@ -76,5 +76,5 @@ position is greater than 2.
 [haskell]: http://www.haskell.org/
 [jquery]: http://jquery.com/
 [maps]: https://developers.google.com/maps/documentation/javascript/reference
-[tests]: https://jlatt.github.io/frp.js/test/
+[tests]: http://jlatt.github.io/frp.js/test/
 [underscore]: http://underscorejs.org/
