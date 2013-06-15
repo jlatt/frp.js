@@ -1,60 +1,118 @@
 <!DOCTYPE html>
 <html>
+
   <head>
-    <meta charset='utf-8'>
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Frp.js : Javascript Functional Reactive Programming Library" />
 
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
-    <title>Frp.js by jlatt</title>
+    <title>Frp.js</title>
   </head>
 
   <body>
 
-    <header>
-      <div class="container">
-        <h1>Frp.js</h1>
-        <h2>Javascript Functional Reactive Programming Library</h2>
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/jlatt/frp.js">View on GitHub</a>
 
-        <section id="downloads">
-          <a href="https://github.com/jlatt/frp.js/zipball/master" class="btn">Download as .zip</a>
-          <a href="https://github.com/jlatt/frp.js/tarball/master" class="btn">Download as .tar.gz</a>
-          <a href="https://github.com/jlatt/frp.js" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
-          <a href="docs/frp.html" class="btn">Annotated Source</a>
-        </section>
-      </div>
-    </header>
+          <h1 id="project_title">Frp.js</h1>
+          <h2 id="project_tagline">Javascript Functional Reactive Programming Library</h2>
 
-    <div class="container">
-      <section id="main_content">
-        <h1>Functional Reactive Programming for JavaScript</h1>
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/jlatt/frp.js/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/jlatt/frp.js/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
 
-<p>Inspiration comes from:</p>
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a name="functional-reactive-programming-for-javascript" class="anchor" href="#functional-reactive-programming-for-javascript"><span class="octicon octicon-link"></span></a>Functional Reactive Programming for JavaScript</h1>
+
+<p>Contributors, pull requests, and issues welcome!</p>
+
+<p>Have a look at the <a href="http://jlatt.github.io/frp.js/docs/frp.html">annotated source code</a>.</p>
+
+<p>Check out the meager <a href="https://jlatt.github.io/frp.js/test/">test suite</a>.</p>
+
+<h2>
+<a name="what-is-frp" class="anchor" href="#what-is-frp"><span class="octicon octicon-link"></span></a>What is FRP?</h2>
+
+<ul>
+<li><a href="http://elm-lang.org/learn/What-is-FRP.elm">from the Elm project</a></li>
+<li><a href="http://en.wikipedia.org/wiki/Functional_reactive_programming">from Wikipedia</a></li>
+</ul><h2>
+<a name="inspiration" class="anchor" href="#inspiration"><span class="octicon octicon-link"></span></a>Inspiration</h2>
 
 <ul>
 <li><a href="http://elm-lang.org/">Elm</a></li>
 <li><a href="http://www.flapjax-lang.org/">Flapjax</a></li>
-</ul><p>Contributors, pull requests, and issues welcome!</p>
+</ul><h2>
+<a name="why-not-elm" class="anchor" href="#why-not-elm"><span class="octicon octicon-link"></span></a>Why not Elm?</h2>
 
-<h2>Why not Elm?</h2>
+<p><a href="http://elm-lang.org/">Elm</a> is really cool, but it's <a href="http://www.haskell.org/">Haskell</a> that compiles to
+JavaScript. Transpiling gives me the willies. Until native debugging for the
+languages is available in most browsers, you'll still need to understand the
+JavaScript environemnt in order to find issues.</p>
 
-<p>Elm is really cool, but it's Haskell that compiles to JavaScript. Transpiling gives me the willies.</p>
+<h2>
+<a name="why-not-flapjax" class="anchor" href="#why-not-flapjax"><span class="octicon octicon-link"></span></a>Why not Flapjax?</h2>
 
-<h2>Why not Flapjax?</h2>
+<p><a href="http://www.flapjax-lang.org/">Flapjax</a> is also cool, but it's self-contained and looks like it was
+written by Haskellers. I want a library that I can integrate with existing code
+in a JavaScript style.</p>
 
-<p>Flapjax is also cool, but it's self-contained and looks like it was written by Haskellers. </p>
-
-<h2>My Goals</h2>
+<h2>
+<a name="my-goals" class="anchor" href="#my-goals"><span class="octicon octicon-link"></span></a>My Goals</h2>
 
 <ul>
-<li>Make use of <a href="http://underscorejs.org/">underscore.js</a> and <a href="http://jquery.com/">jQuery</a> to avoid reinventing common functions.</li>
+<li>Provide a JavaScript library using familiar idioms constrained by the style of
+FRP.</li>
+<li>Make use of <a href="http://underscorejs.org/">underscore.js</a> and <a href="http://jquery.com/">jQuery</a> to avoid
+reinventing useful functions.</li>
+<li>Provide a fast, continuation-based iterator system with common patterns
+already implemented.</li>
+<li>Provide useful tools for mapping along streams of <a href="http://api.jquery.com/category/deferred-object/"><code>$.Deferred</code></a>
+objects.</li>
 <li>Provide utilities for binding to <a href="https://developers.google.com/maps/documentation/javascript/reference">Google Maps</a>.</li>
-</ul>
+</ul><h2>
+<a name="examples" class="anchor" href="#examples"><span class="octicon octicon-link"></span></a>Examples</h2>
+
+<div class="highlight"><pre><span class="nx">frp</span><span class="p">.</span><span class="nx">Stream</span><span class="p">.</span><span class="nx">$</span><span class="p">(</span><span class="s1">'body'</span><span class="p">,</span> <span class="s1">'click'</span><span class="p">,</span> <span class="s1">'button.twiddle'</span><span class="p">).</span><span class="nx">build</span><span class="p">(</span>
+    <span class="s1">'map'</span><span class="p">,</span> <span class="p">[</span><span class="kd">function</span><span class="p">(</span><span class="nx">e</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="nx">$</span><span class="p">(</span><span class="nx">e</span><span class="p">.</span><span class="nx">target</span><span class="p">).</span><span class="nx">closest</span><span class="p">(</span><span class="s1">'button'</span><span class="p">).</span><span class="nx">hasClass</span><span class="p">(</span><span class="s1">'on'</span><span class="p">);</span> <span class="p">}],</span>
+    <span class="s1">'unique'</span><span class="p">,</span> <span class="p">[]);</span>
+</pre></div>
+
+<p>This streams boolean values reflecting the button state (<code>'on'</code>), but only when
+that value changes.</p>
+
+<div class="highlight"><pre><span class="nx">frp</span><span class="p">.</span><span class="nx">Stream</span><span class="p">.</span><span class="nx">$</span><span class="p">(</span><span class="s1">'canvas'</span><span class="p">,</span> <span class="s1">'mousemove'</span><span class="p">).</span><span class="nx">build</span><span class="p">(</span>
+    <span class="s1">'map'</span><span class="p">,</span> <span class="p">[</span><span class="kd">function</span><span class="p">(</span><span class="nx">e</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="p">{</span><span class="s1">'x'</span><span class="o">:</span> <span class="nx">e</span><span class="p">.</span><span class="nx">pageX</span><span class="p">,</span> <span class="s1">'y'</span><span class="o">:</span> <span class="nx">pageY</span><span class="p">};</span> <span class="p">}],</span>
+    <span class="s1">'lastN'</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+    <span class="s1">'atLeastN'</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+    <span class="s1">'filter'</span><span class="p">,</span> <span class="p">[</span><span class="kd">function</span><span class="p">(</span><span class="nx">pos</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="nx">slope</span><span class="p">(</span><span class="nx">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nx">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">;</span> <span class="p">}],</span>
+    <span class="s1">'mapApply'</span><span class="p">,</span> <span class="p">[</span><span class="kd">function</span><span class="p">(</span><span class="nx">b</span><span class="p">,</span> <span class="nx">a</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="nx">b</span><span class="p">;</span> <span class="p">}]);</span>
+</pre></div>
+
+<p>This streams the mouse position whenever the slope from the previously recorded
+position is greater than 2.</p>
       </section>
     </div>
 
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Frp.js maintained by <a href="https://github.com/jlatt">jlatt</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
 
   </body>
 </html>
