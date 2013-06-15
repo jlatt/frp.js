@@ -1,50 +1,33 @@
-//
-// basic class
-//
+module('util');
 
-module('Class', {
-    'setup': function() {
-        this.cls = frp.Class.create();
+test('assert', function() {
+    throws(function() {
+        frp.assert(false);
+    }, 'assertion failed');
+
+    throws(function() {
+        frp.assert(false, 'message');
+    }, 'message');
+});
+
+test('getDefault', function() {
+    var test = {'foo': true, 'bar': undefined};
+    function returnZero() {
+        return 0;
     }
+    strictEqual(frp.getDefault(test, 'foo', returnZero), true);
+    strictEqual(frp.getDefault(test, 'bar', returnZero), undefined);
+    strictEqual(frp.getDefault(test, 'baz', returnZero), 0);
 });
 
-test('create', 2, function() {
-    strictEqual(this.cls.constructor.create, frp.Class.create);
-    strictEqual(this.cls.constructor.extend, frp.Class.extend);
+test('heir', function() {
+    var a = {'foo': true};
+    var b = frp.heir(a);
+    b.bar = true;
+    var c = frp.heir(b);
+    strictEqual(b.foo, true);
+    strictEqual(c.foo, true);
+    strictEqual(c.bar, true);
+    c.foo = false;
+    strictEqual(c.foo, false);
 });
-
-//
-// identifiable
-//
-
-module('Identifiable', {
-    'setup': function() {
-        this.identifiable = frp.Identifiable.create();
-    }
-});
-
-test('create', 2, function() {
-    ok(this.identifiable);
-    ok(this.identifiable.id);
-});
-
-//
-// id set
-//
-
-module('IdSet', {
-    'setup': function() {
-        this.set = frp.IdSet.create();
-    }
-});
-
-test('create', 1, function() {
-    ok(this.set);
-});
-
-//
-// callable interface
-//
-  
-// currently unused 
-module('Callable');

@@ -1,193 +1,304 @@
+// Continuation-Style Iterators
+// ----------------------------
 //
-// functional iterators
+// This is a library of standard iterators for building iteration chains within
+// `Stream`s. Each `Iterator` is a function with the same signature. every
+// `frp.iter` function returns an `Iterator`.
+
+/* globals frp */
+var iter = {};
+
+// Send every received value.
 //
-
-function Identity() {};
-
-Identity.prototype.onNext = function(value, send) {
-    send.call(this, value);
-};
-
-function Chain() {
-    this.iterators = arguments;
-};
-
-Chain.prototype.onNext = function(value, send) {
-    this.onNextIterator(value, send, 0);
-};
-
-Chain.prototype.onNextIterator = function(value, send, index) {
-    frp.assert(index >= 0);
-
-    if (index < this.iterators.length) {
-        var chain = this;
-        this.iterators[index].onNext(value, function(value) {
-            chain.onNextIterator(value, send, index + 1);
-        });
-    } else {
-        Identity.prototype.onNext.call(this, value, send);
+//     value := Value
+//     send := Send
+//     return := Iterator
+iter.identity = _.once(function() {
+    function identity(value, send) {
+        send.call(this, value);
     }
-};
-
-function Map(map) {
-    frp.assert(!!map && _.isFunction(map.call));
-
-    this.map = map;
-};
-
-Map.prototype.onNext = function(value, send) {
-    Identity.prototype.onNext.call(this, this.map.call(this, value), send);
-};
-
-function Filter(filter) {
-    frp.assert(!!filter && _.isFunction(filter.call));
-
-    this.filter = filter;
-};
-
-Filter.prototype.onNext = function(value, send) {
-    if (this.filter.call(this, value)) {
-        Identity.prototype.onNext.apply(this, arguments);
-    }
-};
-
-function Constant(value) {
-    this.value = value;
-};
-
-Constant.prototype.onNext = function(value, send) {
-    Identity.prototype.onNext.call(this, this.value, send);
-};
-
-function Fold(initial, fold) {
-    frp.assert(!!fold && _.isFunction(fold.call));
-
-    this.value = initial;
-    this.fold = fold;
-};
-
-Fold.prototype.onNext = function(value, send) {
-    this.value = this.fold.call(this, value, this.value);
-    Identity.prototype.onNext.call(this, this.value, send);
-};
-
-function TakeWhile(take) {
-    frp.assert(!!take && _.isFunction(take.call));
-
-    this.take = take;
-};
-
-TakeWhile.prototype.onNext = function(value, send) {
-    if (this.take.call(this, value)) {
-        Identity.prototype.onNext.apply(this, arguments);
-    } else {
-        this.onNext = $.noop;
-    }
-};
-
-function DropWhile(drop) {
-    frp.assert(!!drop && _.isFunction(drop.call));
-
-    this.drop = drop;
-};
-
-DropWhile.prototype.onNext = function(value, send) {
-    if (!this.drop.call(this, value)) {
-        this.onNext = Identity.prototype.onNext;
-        this.onNext(value, send);
-    }
-};
-
-function Unique() {};
-
-Unique.prototype.isEqual = _.isEqual;
-
-Unique.prototype.filter = function(value) {
-    var eq = this.isEqual(value, this.value);
-    this.value = value;
-    return !eq;
-};
-
-Unique.prototype.onNext = function(value, send) {
-    this.value = value;
-    this.onNext = Filter.prototype.onNext;
-    Identity.prototype.onNext.apply(this, arguments);
-};
-
-function LastN(n) {
-    frp.assert(n > 0);
-
-    this.n = n;
-};
-
-LastN.prototype = new Fold([], function(value, values) {
-    var lastN = (values.length >= this.n) ? values.slice(1, this.n) : values.slice();
-    lastN.push(value);
-    return lastN;
+    return identity;
 });
 
-LastN.prototype.constructor = LastN;
-
+// Map incoming values with `func`.
 //
-// timing iterators
+//     func := function(Value) Value
+//     return := Iterator
+iter.map = function(func) {
+    function map(value, send) {
+        send.call(this, func.call(this, value));
+    }
+    return map;
+};
+
+// Map incoming values by applying `value` an an arguments array.
 //
-
-function Debounce(wait) {
-    frp.assert(wait > 0);
-
-    this.onNext = _.debounce(Identity.prototype.onNext, wait);
+//     func := function(Value, ...) Value
+//     return := Iterator
+iter.mapApply = function(func) {
+    function mapApply(value, send) {
+        send.call(this, func.apply(this, value));
+    }
+    return mapApply;
 };
 
-function Throttle(wait) {
-    frp.assert(wait > 0);
-
-    this.onNext = _.throttle(Identity.prototype.onNext, wait);
-};
-
+// Filter incoming values with `func`.
 //
-// future iterators
+//     func := function(Value) Boolean
+//     return := Iterator
+iter.filter = function(func) {
+    function filter(value, send) {
+        if (func.call(this, value)) {
+            send.call(this, value);
+        }
+    }
+    return filter;
+};
+
+// Fold over the incoming stream. Call `func` where `current` begins with value
+// `initial` and the return value sets `current` for the next call.
 //
-
-function Promise() {};
-
-Promise.prototype.map = function(value) {
-    return jQuery.Deferred().resolveWith(this, arguments).promise();
+//     initial := Value
+//     func := function(Value, Value) Value
+//     return := Iterator
+iter.fold = function(initial, func) {
+    var current = initial;
+    function fold(value, send) {
+        current = func.call(this, current, value);
+        send.call(this, current);
+    }
+    return fold;
 };
 
-Promise.prototype.onNext = Map.prototype.onNext;
+// Chain a list of iterator functions together. Each iterator is applied in
+// sequence.
+//
+//     iterator := Iterator
+//     return := Iterator
+iter.chain = function(/*iterator, ...*/) {
+    if (arguments.length === 0) {
+        return iter.identity();
+    }
 
-function Unpromise() {};
+    if (arguments.length === 1) {
+        return arguments[0];
+    }
 
-Unpromise.prototype.onNext = function(value, send) {
-    var iter = this;
-    value.done(function() {
-        send.apply(iter, arguments);
-    });
+    return _.reduceRight(arguments, function(next, current) {
+        function chain(value, send) {
+            current.call(this, value, function(value) {
+                next.call(this, value, send);
+            });
+        }
+        return chain;
+    }, iter.identity(), this);
 };
 
-function MapPromise(mapPromise) {
-    this.mapPromise = _.bind(mapPromise, this);
+// Send a constant `value` for every received value.
+//
+//     value := Value
+//     return := Iterator
+iter.constant = function(value) {
+    function constant() {
+        return value;
+    }
+    return iter.map(constant);
 };
 
-MapPromise.prototype.map = function(value) {
-    return value.pipe(this.mapPromise);
+// For incoming values, send an array of up to `n` received values in that
+// order.
+//
+//     n := Number, > 1
+//     return := Iterator
+iter.lastN = function(n) {
+    frp.assert(n > 1);
+
+    function lastN(values, value) {
+        var next = [value].concat(values);
+        next.length = Math.min(next.length, n);
+        return next;
+    }
+    return iter.fold([], lastN);
 };
 
-MapPromise.prototype.onNext = Map.prototype.onNext;
+// Ensure the the argument, which must be array-like, has at least `n`
+// elements. This is often chained with `lastN`.
+//
+//     n := Integer, > 0
+iter.atLeastN = function(n) {
+    frp.assert(n > 0);
 
-function AbortPrevious() {};
-
-AbortPrevious.prototype = new Chain(
-    new LastN(2),
-    new Map(function(values) {
-        this.map = this.abortPrevious;
-        return values[0];
-    })
-);
-
-AbortPrevious.prototype.constructor = AbortPrevious;
-
-AbortPrevious.prototype.abortPrevious = function(values) {
-    values[0].abort();
-    return values[1];
+    function atLeastN(args) {
+        return args.length >= n;
+    }
+    return iter.filter(atLeastN);
 };
+
+// For the first value, call `once`. Afterwards, call `then`.
+//
+//     once, then, return := Iterator
+iter.onceThen = function(once, then) {
+    var current = function() {
+        once.apply(this, arguments);
+        current = then;
+    };
+    function onceThen() {
+        current.apply(this, arguments);
+    }
+    return onceThen;
+};
+
+// Only send values unique from the previously received value. `isEqual`
+// defaults to [`_.isEqual`](http://underscorejs.org/#isEqual).
+//
+//     isEqual := function(Value, Value) Boolean
+//     return := Iterator
+iter.unique = function(isEqual/*?*/) {
+    if (!_.isFunction(isEqual)) {
+        isEqual = _.bind(_.isEqual, _);
+    }
+
+    var current;
+    function setAndSend(value, send) {
+        current = value;
+        send.call(this, current);
+    }
+    function sendIfEqual(value, send) {
+        if (!isEqual.call(this, current, value)) {
+            setAndSend.call(this, value, send);
+        }
+    }
+    return iter.onceThen(setAndSend, sendIfEqual);
+};
+
+// Send received values until `func` returns falsy.
+//
+//     func := function(Value) Boolean
+//     return := Iterator
+iter.takeWhile = function(func) {
+    var taking = function(value, send) {
+        if (func.call(this, value)) {
+            send.call(this, value);
+        } else {
+            taking = $.noop;
+        }
+    };
+    function takeWhile() {
+        taking.apply(this, arguments);
+    }
+    return takeWhile;
+};
+
+// Send no received values until `func` returns falsy.
+//
+//     func := function(Value) Boolean
+//     return := Iterator
+iter.dropWhile = function(func) {
+    var dropping = function(value, send) {
+        if (!func.call(this, value)) {
+            dropping = iter.identity();
+            send.call(this, value);
+        }
+    };
+    function dropWhile() {
+        dropping.apply(this, arguments);
+    }
+    return dropWhile;
+};
+
+// Send the last value after reeiving no values for `wait` ms.
+//
+//     wait := Number
+//     return := Iterator
+iter.debounce = function(wait) {
+    return _.debounce(iter.identity(), wait);
+};
+
+// Send no more than one value per `wait` ms.
+//
+//     wait := Number
+//     return := Iterator
+iter.throttle = function(wait) {
+    return _.throttle(iter.identity(), wait);
+};
+
+// Send incoming values after a delay of `wait` ms. This relies on the
+// scheduler, so order cannot be guaranteed.
+//
+//     wait := Number
+//     return := Iterator
+iter.delay = function(wait) {
+    function delay(value, send) {
+        _.chain(send).bind(this, value).delay(wait);
+    }
+    return delay;
+};
+
+// Turn incoming values into a resolved promise for a value.
+//
+//     return := Iterator
+iter.promise = _.once(function() {
+    function promise() {
+        return jQuery.Deferred().resolveWith(this, arguments).promise();
+    }
+    return iter.map(promise);
+});
+
+// Remove promise wrappers. Order is not guaranteed.
+//
+//     promise := $.Deferred
+//     send := function(Value)
+//     return := Iterator
+iter.unpromise = _.once(function() {
+    function unpromise(promise, send) {
+        promise.done(send);
+    }
+    return unpromise;
+});
+
+// Call `abort` on the previous value sent when sending a new value. This
+// iterator can be used in a stream of XHRs to cancel the currently running XHR
+// when receiving a new one.
+//
+//     return := Iterator
+iter.abortLast = _.once(function() {
+    function abortLast(current, last) {
+        last.abort();
+        return current;
+    }
+    return iter.chain(
+        iter.lastN(2),
+        iter.atLeastN(2),
+        iter.mapApply(abortLast));
+});
+
+// Map promises through a filter. Order is not guaranteed.
+//
+//     return := Iterator
+iter.mapPromise = function(done) {
+    function mapPromise(promise) {
+        return promise.then(done);
+    }
+    return iter.map(mapPromise);
+};
+
+// Build an iterator. Pass an even number of arguments, alternating between the
+// name of an iterator in `frp.iter` and an array of arguments.
+//
+//     arguments := String, Array, String, Array, ...
+//     return := Iterator
+iter.build = function(/*name1, args1, name2, args2, ...*/) {
+    var len = arguments.length;
+    frp.assert((len % 2) === 0);
+
+    var chainArgs = [];
+    for (var i = 0; i < len; i += 2) {
+        var name = arguments[i];
+        var args = arguments[i + 1];
+        chainArgs.push(iter[name].apply(this, args));
+    }
+    return iter.chain.apply(this, chainArgs);
+};
+
+// Export.
+frp.iter = iter;
