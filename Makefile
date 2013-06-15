@@ -1,14 +1,19 @@
-files = src/__init__.js src/util.js src/iterator.js src/vectorclock.js src/stream.js src/proxy.js 
+files = src/__init__.js src/util.js src/iterator.js src/vectorclock.js src/stream.js src/proxy.js
+target = frp.js
 
-all: frp.js
+.PHONY: clean test lint
 
-frp.js: $(files)
-	cat $(files) | ./script/package.sh > $@
+$(target): $(files)
+	cat $^ | ./script/package.sh > $@
 
-.PHONY: clean test
+docs: $(target)
+	docco $^
 
 clean:
-	rm -vf frp.js
+	rm -rf $(target) docs
 
-test: frp.js
+test: $(target)
 	open test/index.html
+
+lint: $(files)
+	jshint $(files)

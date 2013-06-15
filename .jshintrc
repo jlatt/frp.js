@@ -1,0 +1,28 @@
+// -*- mode: js -*-
+{"bitwise": false,
+ "browser": true,
+ "camelcase": true,
+ "curly": true,
+ "eqeqeq": true,
+ "es3": true,
+ "forin": false,
+ "globals": {
+     "_": false},
+ "immed": true,
+ "jquery": true,
+ "latedef": true,
+ "maxdepth": 3,
+ "maxlen": 80,
+ "maxparams": 5,
+ "maxstatements": 25,
+ "newcap": true,
+ "noarg": true,
+ "noempty": false,
+ "nonew": true,
+ "plusplus": false,
+
+ "quotmark": "single",
+ "regexp": false,
+ "strict": false,
+ "trailing": true,
+ "undef": true}
