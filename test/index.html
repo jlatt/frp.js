@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+
+    <title>frp.js tests</title>
+
+    <link rel="stylesheet" href="http://code.jquery.com/qunit/qunit-1.11.0.css">
+    <style>body { max-width: 60em; margin: 0.5em auto; }</style>
+  </head>
+
+  <body>
+    <div id="qunit"></div>
+    <div id="qunit-fixture"></div>
+
+    <!-- external libraries -->
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.4/underscore-min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+    <script src="http://code.jquery.com/qunit/qunit-1.11.0.js"></script>
+
+    <!-- library -->
+    <script src="../frp.js"></script>
+
+    <!-- tests -->
+    <script src="test_setup.js"></script>
+    <script src="util_test.js"></script>
+    <script src="iterator_test.js"></script>
+    <script src="stream_test.js"></script>
+    <script src="proxy_test.js"></script>
+    <script src="vectorclock_test.js"></script>
+  </body>
+</html>
