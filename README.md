@@ -3,7 +3,9 @@ Functional Reactive Programming for JavaScript
 
 Contributors, pull requests, and issues welcome!
 
-Have a look at the [annotated source code][annotated]
+Have a look at the [annotated source code][annotated].
+
+Check out the meager [test suite][tests].
 
 What is FRP?
 ------------
@@ -74,4 +76,5 @@ position is greater than 2.
 [haskell]: http://www.haskell.org/
 [jquery]: http://jquery.com/
 [maps]: https://developers.google.com/maps/documentation/javascript/reference
+[tests]: https://jlatt.github.io/frp.js/test/
 [underscore]: http://underscorejs.org/
