@@ -15,5 +15,5 @@ clean:
 test: $(target)
 	open test/index.html
 
-lint: $(target)
+lint: $(files)
 	jshint $(files)
