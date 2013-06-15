@@ -1,6 +1,7 @@
 // Event Streams
 // -------------
-/* globals frp: false */
+
+/* globals frp */
 
 // Create an event stream. Some streams are hooked to native (external) event
 // handlers. Others must be triggered directly by calling `emit`.
@@ -8,9 +9,10 @@
 //     return := Stream
 function Stream() {
     _.bindAll(this, 'receive');
-    this.onEmit   = jQuery.Callbacks('memory unique');
+    this.cancel = _.once(this.cancel);
+    this.onEmit = jQuery.Callbacks('memory unique');
     this.onCancel = jQuery.Callbacks('memory once unique');
-    this.cancel   = _.once(this.cancel);
+    this.receive.stream = this; // so streams can find their sources.
 }
 
 // Wrap the constructor for ease of use.
@@ -27,14 +29,34 @@ Stream.create = function() {
 //     object := Object
 //     return := this
 Stream.prototype.extend = function(/*object, ...*/) {
-    return _.extend.apply(_, [this].concat(arguments));
+    var args = [this];
+    args.push.apply(args, arguments);
+    return _.extend.apply(_, args);
 };
 
 // By default, use an identity mapping for incoming events. Set `iter` to any
 // `Iterator` to modify the incoming event stream.
-Stream.prototype.iter = frp.iter.identity;
+Stream.prototype.iter = frp.iter.identity();
 
-// Receive an event. This function is not usually called directly.
+// Set the iterator for this stream.
+//
+//     iterator := Iterator
+//     return := this
+Stream.prototype.iterate = function(/*iterator, ...*/) {
+    this.iter = frp.iter.chain.apply(frp.iter, arguments);
+};
+
+// Build an iterator for this stream.
+//
+//     arguments := see frp.iter.build
+//     return := this
+Stream.prototype.build = function(/*...*/) {
+    this.iter = frp.iter.build.apply(this, arguments);
+    return this;
+};
+
+// Receive an event. This function is not usually called directly, but rather by
+// callbacks from upstream even signals.
 //
 //     value := Value
 Stream.prototype.receive = function(value) {
@@ -106,17 +128,17 @@ Stream.prototype.merge = function(/*stream, ...*/) {
     return Stream.merge(this, _.toArray(arguments));
 };
 
-// External Event Sources
-// ----------------------
+// External Event Sources (aka Signals)
+// ------------------------------------
 
-// Create a stream bound to a dom event using jQuery.
+// Create a stream bound to a dom event using jQuery. See docs for
+// [jQuery](http://api.jquery.com/jQuery/) regarding arguments.
 //
 //     source := jQuery || arguments to jQuery()
 //     event := String
 //     selector := String
 //     return := Stream
 Stream.$ = function(source, event, selector/*?*/) {
-    /* globals jQuery */
     var stream = Stream.create();
     var $source = jQuery(source);
     frp.assert($source.length > 0, 'empty jQuery');
@@ -138,7 +160,7 @@ Stream.$ = function(source, event, selector/*?*/) {
 //     source := google.maps.Object
 //     event := String
 //     return := Stream
-Stream.gmap = function(source, event, callback) {
+Stream.gmap = function(source, event) {
     /* globals google */
     frp.assert(_.isString(event));
 

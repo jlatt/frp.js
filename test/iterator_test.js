@@ -14,14 +14,14 @@ function testIter(testValues, iterator, receive) {
     }, this);
 }
 
-function expectStrictEqual(expect) {
+function expectEqual(expect, equal) {
     return function(input, output) {
-        strictEqual(output, expect.shift());
+        equal(output, expect.shift());
     };
 }
 
 test('identity', 4, function() {
-    testIter.call(this, VARIED, iter.identity, function(input, output) {
+    testIter.call(this, VARIED, iter.identity(), function(input, output) {
         strictEqual(output, input);
     });
 });
@@ -62,7 +62,7 @@ test('fold', 5, function() {
         return s + n;
     });
     var expect = [1, 3, 6, 10, 15];
-    testIter.call(this, NUMBERS, iterator, expectStrictEqual(expect));
+    testIter.call(this, NUMBERS, iterator, expectEqual(expect, strictEqual));
 });
 
 test('constant', 4, function() {
@@ -73,12 +73,18 @@ test('constant', 4, function() {
     });
 });
 
-test('lastN', function() {
+test('lastN', 5, function() {
     var iterator = iter.lastN(3);
     var expect = [[1], [2, 1], [3, 2, 1], [4, 3, 2], [5, 4, 3]];
-    testIter.call(this, NUMBERS, iterator, function(input, output) {
-        deepEqual(output, expect.shift());
-    });
+    testIter.call(this, NUMBERS, iterator, expectEqual(expect, deepEqual));
+});
+
+test('atLeastN', 3, function() {
+    var testVals = [[1, 3, 4], [1, 2, 3, 4], [5, 4], [5], [2, 3, 4, 5],
+                    [3, 4, 5, 6]];
+    var iterator = iter.atLeastN(4);
+    var expect = [[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]];
+    testIter.call(this, testVals, iterator, expectEqual(expect, deepEqual));
 });
 
 test('onceThen', 5, function() {
@@ -88,13 +94,13 @@ test('onceThen', 5, function() {
         iter.constant(testVal)
     );
     var expect = [11, 23, 23, 23, 23];
-    testIter.call(this, NUMBERS, iterator, expectStrictEqual(expect));
+    testIter.call(this, NUMBERS, iterator, expectEqual(expect, strictEqual));
 });
 
 test('unique', 4, function() {
     var inputs = [1, 1, 1, 2, 2, 3, 3, 3, 4, 4];
     var expect = [1, 2, 3, 4];
-    testIter.call(this, inputs, iter.unique(), expectStrictEqual(expect));
+    testIter.call(this, inputs, iter.unique(), expectEqual(expect, strictEqual));
 });
 
 test('takeWhile', 4, function() {
@@ -103,7 +109,7 @@ test('takeWhile', 4, function() {
     }
     var iterator = iter.takeWhile(lessThanFour);
     var expect = [0, 1, 2, 3];
-    testIter.call(this, _.range(10), iterator, expectStrictEqual(expect));
+    testIter.call(this, _.range(10), iterator, expectEqual(expect, strictEqual));
 });
 
 test('dropWhile', 5, function() {
@@ -112,7 +118,7 @@ test('dropWhile', 5, function() {
     }
     var iterator = iter.dropWhile(lessThanFive);
     var expect = [5, 6, 7, 8, 9];
-    testIter.call(this, _.range(10), iterator, expectStrictEqual(expect));
+    testIter.call(this, _.range(10), iterator, expectEqual(expect, strictEqual));
 });
 
 test('chain', 4, function() {
@@ -120,8 +126,8 @@ test('chain', 4, function() {
         iter.map(function(v) { return v + 2; }),
         iter.map(function(v) { return v * 3; }),
         iter.filter(function(v) { return v > 10; }),
-        iter.identity,
-        iter.identity,
+        iter.identity(),
+        iter.identity(),
         iter.map(function(v) { return [v, 5]; }),
         iter.mapApply(function(v1, v2) { return v1 + v2; })
     );

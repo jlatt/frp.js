@@ -2,9 +2,8 @@
 // ----------------------------
 //
 // This is a library of standard iterators for building iteration chains within
-// `Stream`s. Each iterator is a function with the same signature. Some
-// functions in this library build iterators, while others are simple iterators
-// to be used in a chain.
+// `Stream`s. Each `Iterator` is a function with the same signature. every
+// `frp.iter` function returns an `Iterator`.
 
 /* globals frp */
 var iter = {};
@@ -13,10 +12,12 @@ var iter = {};
 //
 //     value := Value
 //     send := Send
-function identity(value, send) {
-    send.call(this, value);
-}
-iter.identity = identity;
+iter.identity = _.once(function() {
+    function identity(value, send) {
+        send.call(this, value);
+    }
+    return identity;
+});
 
 // Map incoming values with `func`.
 //
@@ -75,7 +76,7 @@ iter.fold = function(initial, func) {
 //     return := Iterator
 iter.chain = function(/*iterator, ...*/) {
     if (arguments.length === 0) {
-        return iter.identity;
+        return iter.identity();
     }
 
     if (arguments.length === 1) {
@@ -89,7 +90,7 @@ iter.chain = function(/*iterator, ...*/) {
             });
         }
         return chain;
-    }, iter.identity);
+    }, iter.identity(), this);
 };
 
 // Send a constant `value` for every received value.
@@ -97,9 +98,10 @@ iter.chain = function(/*iterator, ...*/) {
 //     value := Value
 //     return := Iterator
 iter.constant = function(value) {
-    return iter.map(function() {
+    function constant() {
         return value;
-    });
+    }
+    return iter.map(constant);
 };
 
 // For incoming values, send an array of up to `n` received values in that
@@ -110,11 +112,25 @@ iter.constant = function(value) {
 iter.lastN = function(n) {
     frp.assert(n > 1);
 
-    return iter.fold([], function(values, value) {
+    function lastN(values, value) {
         var next = [value].concat(values);
         next.length = Math.min(next.length, n);
         return next;
-    });
+    }
+    return iter.fold([], lastN);
+};
+
+// Ensure the the argument, which must be array-like, has at least `n`
+// elements. This is often chained with `lastN`.
+//
+//     n := Integer, > 0
+iter.atLeastN = function(n) {
+    frp.assert(n > 0);
+
+    function atLeastN(args) {
+        return args.length >= n;
+    }
+    return iter.filter(atLeastN);
 };
 
 // For the first value, call `once`. Afterwards, call `then`.
@@ -131,7 +147,8 @@ iter.onceThen = function(once, then) {
     return onceThen;
 };
 
-// Only send values unique from the previously received value.
+// Only send values unique from the previously received value. `isEqual`
+// defaults to [`_.isEqual`](http://underscorejs.org/#isEqual).
 //
 //     isEqual := function(Value, Value) Boolean
 //     return := Iterator
@@ -141,15 +158,16 @@ iter.unique = function(isEqual/*?*/) {
     }
 
     var current;
-    var setAndSend = function(value, send) {
+    function setAndSend(value, send) {
         current = value;
         send.call(this, current);
-    };
-    return iter.onceThen(setAndSend, function(value, send) {
+    }
+    function sendIfEqual(value, send) {
         if (!isEqual.call(this, current, value)) {
             setAndSend.call(this, value, send);
         }
-    });
+    }
+    return iter.onceThen(setAndSend, sendIfEqual);
 };
 
 // Send received values until `func` returns falsy.
@@ -177,7 +195,7 @@ iter.takeWhile = function(func) {
 iter.dropWhile = function(func) {
     var dropping = function(value, send) {
         if (!func.call(this, value)) {
-            dropping = iter.identity;
+            dropping = iter.identity();
             send.call(this, value);
         }
     };
@@ -192,7 +210,7 @@ iter.dropWhile = function(func) {
 //     wait := Number
 //     return := Iterator
 iter.debounce = function(wait) {
-    return _.debounce(iter.identity, wait);
+    return _.debounce(iter.identity(), wait);
 };
 
 // Send no more than one value per `wait` ms.
@@ -200,7 +218,7 @@ iter.debounce = function(wait) {
 //     wait := Number
 //     return := Iterator
 iter.throttle = function(wait) {
-    return _.throttle(iter.identity, wait);
+    return _.throttle(iter.identity(), wait);
 };
 
 // Send incoming values after a delay of `wait` ms. This relies on the
@@ -209,7 +227,6 @@ iter.throttle = function(wait) {
 //     wait := Number
 //     return := Iterator
 iter.delay = function(wait) {
-    var handle;
     function delay(value, send) {
         _.chain(send).bind(this, [value]).delay(wait);
     }
@@ -219,37 +236,46 @@ iter.delay = function(wait) {
 // Turn incoming values into a resolved promise for a value.
 //
 //     return := Iterator
-iter.promise = iter.map(function() {
-    return jQuery.Deferred().resolveWith(this, arguments).promise();
+iter.promise = _.once(function() {
+    function promise() {
+        return jQuery.Deferred().resolveWith(this, arguments).promise();
+    }
+    return iter.map(promise);
 });
 
 // Remove promise wrappers. Order is not guaranteed.
 //
 //     promise := $.Deferred
 //     send := function(Value)
-iter.unpromise = function(promise, send) {
-    promise.done(send);
-};
+iter.unpromise = _.once(function() {
+    function unpromise(promise, send) {
+        promise.done(send);
+    }
+    return unpromise;
+});
 
 // Call `abort` on the previous value sent when sending a new value. This
 // iterator can be used in a stream of XHRs to cancel the currently running XHR
 // when receiving a new one.
-iter.abortLast = iter.chain(
-    iter.lastN(2),
-    iter.mapApply(function(current, last) {
-        if (arguments.length > 1) {
-            last.abort();
-        }
+iter.abortLast = _.once(function() {
+    function abortLast(current, last) {
+        last.abort();
         return current;
-    }));
+    }
+    return iter.chain(
+        iter.lastN(2),
+        iter.atLeastN(2),
+        iter.mapApply(abortLast));
+});
 
 // Map promises through a filter. Order is not guaranteed.
 //
 //     return := Iterator
 iter.mapPromise = function(done) {
-    return iter.map(function(promise) {
+    function mapPromise(promise) {
         return promise.then(done);
-    });
+    }
+    return iter.map(mapPromise);
 };
 
 // Build an iterator. Pass an even number of arguments, alternating between the
@@ -265,7 +291,7 @@ iter.build = function(/*name1, args1, name2, args2, ...*/) {
     for (var i = 0; i < len; i += 2) {
         var name = arguments[i];
         var args = arguments[i + 1];
-        chainArgs.push(frp.iter[name].apply(this, args));
+        chainArgs.push(iter[name].apply(this, args));
     }
     return iter.chain.apply(this, chainArgs);
 };
