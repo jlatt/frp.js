@@ -12,6 +12,7 @@ var iter = {};
 //
 //     value := Value
 //     send := Send
+//     return := Iterator
 iter.identity = _.once(function() {
     function identity(value, send) {
         send.call(this, value);
@@ -228,7 +229,7 @@ iter.throttle = function(wait) {
 //     return := Iterator
 iter.delay = function(wait) {
     function delay(value, send) {
-        _.chain(send).bind(this, [value]).delay(wait);
+        _.chain(send).bind(this, value).delay(wait);
     }
     return delay;
 };
@@ -247,6 +248,7 @@ iter.promise = _.once(function() {
 //
 //     promise := $.Deferred
 //     send := function(Value)
+//     return := Iterator
 iter.unpromise = _.once(function() {
     function unpromise(promise, send) {
         promise.done(send);
@@ -257,6 +259,8 @@ iter.unpromise = _.once(function() {
 // Call `abort` on the previous value sent when sending a new value. This
 // iterator can be used in a stream of XHRs to cancel the currently running XHR
 // when receiving a new one.
+//
+//     return := Iterator
 iter.abortLast = _.once(function() {
     function abortLast(current, last) {
         last.abort();

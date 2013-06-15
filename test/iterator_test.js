@@ -1,4 +1,4 @@
-module('iterator');
+module('iter');
 
 var iter = frp.iter;
 var VARIED = [5, null, undefined, 'foobar'];

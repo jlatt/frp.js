@@ -40,7 +40,7 @@ Examples
 --------
 
 ```js
-Stream.$('body', click', 'button.twiddle').build(
+Stream.$('body', 'click', 'button.twiddle').build(
     'map', [function(e) { return $(e.target).closest('button').hasClass('on'); }],
     'unique', []);
 ```
@@ -52,7 +52,7 @@ that value changes.
 Stream.$('canvas', 'mousemove').build(
     'map', [function(e) { return {'x': e.pageX, 'y': pageY}; }],
     'lastN', [2],
-    'atLeastN, [2],
+    'atLeastN', [2],
     'filter', [function(pos) { return slope(pos[1], pos[0]) > 2; }],
     'mapApply', [function(b, a) { return b; }]);
 ```

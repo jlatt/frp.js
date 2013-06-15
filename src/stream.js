@@ -12,7 +12,6 @@ function Stream() {
     this.cancel = _.once(this.cancel);
     this.onEmit = jQuery.Callbacks('memory unique');
     this.onCancel = jQuery.Callbacks('memory once unique');
-    this.receive.stream = this; // so streams can find their sources.
 }
 
 // Wrap the constructor for ease of use.
@@ -20,18 +19,6 @@ function Stream() {
 //     return := Stream
 Stream.create = function() {
     return new Stream();
-};
-
-// Extend the instance with arbitrary properties. This can be used to set the
-// iterator or override other properties. e.g. `stream.extend({'iter':
-// frp.iter.map(Math.sqrt)});`
-//
-//     object := Object
-//     return := this
-Stream.prototype.extend = function(/*object, ...*/) {
-    var args = [this];
-    args.push.apply(args, arguments);
-    return _.extend.apply(_, args);
 };
 
 // By default, use an identity mapping for incoming events. Set `iter` to any
@@ -42,8 +29,9 @@ Stream.prototype.iter = frp.iter.identity();
 //
 //     iterator := Iterator
 //     return := this
-Stream.prototype.iterate = function(/*iterator, ...*/) {
-    this.iter = frp.iter.chain.apply(frp.iter, arguments);
+Stream.prototype.setIter = function(/*iterator, ...*/) {
+    this.iter = frp.iter.chain.apply(this, arguments);
+    return this;
 };
 
 // Build an iterator for this stream.
@@ -138,19 +126,19 @@ Stream.prototype.merge = function(/*stream, ...*/) {
 //     event := String
 //     selector := String
 //     return := Stream
-Stream.$ = function(source, event, selector/*?*/) {
-    var stream = Stream.create();
+Stream.$ = function(source/*, event, selector?*/) {
+    frp.assert(arguments.length > 1);
+
     var $source = jQuery(source);
     frp.assert($source.length > 0, 'empty jQuery');
-    var args = Array.prototype.slice.call(arguments, 1);
-    args.push(function(e) {
-        stream.emit(e);
-    });
 
-    $source.on.apply($source, args);
+    var stream = Stream.create();
+    var args = Array.prototype.slice.call(arguments, 1);
+    args.push(_.bind(stream.emit, stream)); // event handler
     stream.onCancel.add(function() {
         $source.off.apply($source, args);
     });
+    $source.on.apply($source, args);
 
     return stream;
 };
@@ -184,11 +172,11 @@ Stream.sample = function(sample, wait) {
     frp.assert(wait > 0);
 
     var stream = Stream.create();
-    var handle = setInterval(function() {
+    var handle = window.setInterval(function() {
         stream.emit(sample());
     }, wait);
     stream.onCancel.add(function() {
-        clearInterval(handle);
+        window.clearInterval(handle);
     });
     return stream;
 };
