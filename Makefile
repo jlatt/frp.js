@@ -1,16 +1,24 @@
 files = src/__init__.js src/util.js src/iterator.js src/vectorclock.js src/stream.js src/proxy.js src/jquery.frp.js
 target = frp.js
+min_target = frp.min.js
+gz_target = frp.min.js.gz
 
 .PHONY: clean test lint pages
 
 $(target): $(files)
 	cat $^ | ./script/package.sh > $@
 
+$(min_target): $(target)
+	closure-compiler $^ > $@
+
+$(gz_target): $(min_target)
+	gzip -c $^ > $@
+
 docs: $(target)
 	docco $^
 
 clean:
-	rm -rf $(target) docs
+	rm -rf $(target) $(min_target) $(gz_target) docs
 
 test: $(target)
 	open test/index.html
