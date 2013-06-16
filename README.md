@@ -45,6 +45,12 @@ My Goals
   objects.
 - Provide utilities for binding to [Google Maps][maps].
 
+Dependencies
+------------
+
+- [jQuery][jquery] 1.10.1
+- [Underscore][underscore] 1.4.4
+
 Examples
 --------
 
