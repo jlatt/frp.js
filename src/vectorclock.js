@@ -9,7 +9,9 @@
 // Create a new vector clock.
 //
 //     return := VectorClock
-function VectorClock() {}
+function VectorClock() {
+    this.clocks = {};
+}
 
 // Wrap the constructor for ease.
 //
@@ -17,10 +19,6 @@ function VectorClock() {}
 VectorClock.create = function() {
     return new VectorClock();
 };
-
-// Map names to integers. Since vector clocks are read-only structures, it's
-// safe to use this so long as the name `clocks` is overridden in new instances.
-VectorClock.prototype.clocks = {};
 
 function returnZero() {
     return 0;
@@ -50,7 +48,6 @@ VectorClock.prototype.descends = function(other) {
 //     return := VectorClock
 VectorClock.prototype.merge = function(other) {
     var merged = VectorClock.create();
-    merged.clocks = frp.heir(merged.clocks);
     var vclocks = _.chain([this, other]);
     vclocks
         .pluck('clocks')
@@ -64,6 +61,7 @@ VectorClock.prototype.merge = function(other) {
                 .max()
                 .value();
         }, this);
+    return merged;
 };
 
 // Return a vector clock with `name` incremented by 1.
@@ -72,7 +70,7 @@ VectorClock.prototype.merge = function(other) {
 //     return := VectorClock
 VectorClock.prototype.increment = function(name) {
     var incr = VectorClock.create();
-    incr.clocks = frp.heir(this.clocks);
+    _.extend(incr.clocks, this.clocks);
     incr.clocks[name] = incr.getClock(name) + 1;
     return incr;
 };
