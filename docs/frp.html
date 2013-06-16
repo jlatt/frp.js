@@ -246,7 +246,7 @@ frp.heir       = heir;</pre></div></div>
                 <a class="pilcrow" href="#section-13">&#182;</a>
               </div>
               <p>This is a library of standard iterators for building iteration chains within
-<code>Stream</code>s. Each <code>Iterator</code> is a function with the same signature. every
+<code>Stream</code>s. Each <code>Iterator</code> is a function with the same signature. Every
 <code>frp.iter</code> function returns an <code>Iterator</code>.</p>
 
             </div>
@@ -264,9 +264,7 @@ frp.heir       = heir;</pre></div></div>
                 <a class="pilcrow" href="#section-14">&#182;</a>
               </div>
               <p>Send every received value.</p>
-<pre><code>value := Value
-send := Send
-return := Iterator</code></pre>
+<pre><code>return := Iterator</code></pre>
 
             </div>
             
@@ -445,15 +443,7 @@ return := Iterator</code></pre>
             </div>
             
             <div class="content"><div class='highlight'><pre>iter.lastN = <span class="keyword">function</span>(n) {
-    frp.assert(n &gt; <span class="number">1</span>);
-
-    <span class="function"><span class="keyword">function</span> <span class="title">lastN</span><span class="params">(values, value)</span> {</span>
-        <span class="keyword">var</span> next = [value].concat(values);
-        next.length = Math.min(next.length, n);
-        <span class="keyword">return</span> next;
-    }
-    <span class="keyword">return</span> iter.fold([], lastN);
-};</pre></div></div>
+    frp.assert(n &gt; <span class="number">1</span>, <span class="string">'lastN requires n &gt; 1'</span>);</pre></div></div>
             
         </li>
         
@@ -464,19 +454,17 @@ return := Iterator</code></pre>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-22">&#182;</a>
               </div>
-              <p>Ensure the the argument, which must be array-like, has at least <code>n</code>
-elements. This is often chained with <code>lastN</code>.</p>
-<pre><code>n := Integer, &gt; 0</code></pre>
+              <pre><code>values := [Value, ...]
+value, return := Value</code></pre>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>iter.atLeastN = <span class="keyword">function</span>(n) {
-    frp.assert(n &gt; <span class="number">0</span>);
-
-    <span class="function"><span class="keyword">function</span> <span class="title">atLeastN</span><span class="params">(args)</span> {</span>
-        <span class="keyword">return</span> args.length &gt;= n;
+            <div class="content"><div class='highlight'><pre>    <span class="function"><span class="keyword">function</span> <span class="title">lastN</span><span class="params">(values, value)</span> {</span>
+        <span class="keyword">var</span> next = [value].concat(values);
+        next.length = Math.min(next.length, n);
+        <span class="keyword">return</span> next;
     }
-    <span class="keyword">return</span> iter.filter(atLeastN);
+    <span class="keyword">return</span> iter.fold([], lastN);
 };</pre></div></div>
             
         </li>
@@ -488,6 +476,44 @@ elements. This is often chained with <code>lastN</code>.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-23">&#182;</a>
               </div>
+              <p>Ensure the the argument, which must be array-like, has at least <code>n</code>
+elements. This is often chained with <code>lastN</code>.</p>
+<pre><code>n := Integer, &gt; 0</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>iter.atLeastN = <span class="keyword">function</span>(n) {
+    frp.assert(n &gt; <span class="number">0</span>);</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-24">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-24">&#182;</a>
+              </div>
+              <pre><code>args := Array-like
+return := Boolean</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="function"><span class="keyword">function</span> <span class="title">atLeastN</span><span class="params">(args)</span> {</span>
+        <span class="keyword">return</span> args.length &gt;= n;
+    }
+    <span class="keyword">return</span> iter.filter(atLeastN);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-25">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-25">&#182;</a>
+              </div>
               <p>For the first value, call <code>once</code>. Afterwards, call <code>then</code>.</p>
 <pre><code>once, then, return := Iterator</code></pre>
 
@@ -495,8 +521,8 @@ elements. This is often chained with <code>lastN</code>.</p>
             
             <div class="content"><div class='highlight'><pre>iter.onceThen = <span class="keyword">function</span>(once, then) {
     <span class="keyword">var</span> current = <span class="keyword">function</span>() {
-        once.apply(<span class="keyword">this</span>, arguments);
         current = then;
+        once.apply(<span class="keyword">this</span>, arguments);
     };
     <span class="function"><span class="keyword">function</span> <span class="title">onceThen</span><span class="params">()</span> {</span>
         current.apply(<span class="keyword">this</span>, arguments);
@@ -507,11 +533,11 @@ elements. This is often chained with <code>lastN</code>.</p>
         </li>
         
         
-        <li id="section-24">
+        <li id="section-26">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-24">&#182;</a>
+                <a class="pilcrow" href="#section-26">&#182;</a>
               </div>
               <p>Only send values unique from the previously received value. <code>isEqual</code>
 defaults to <a href="http://underscorejs.org/#isEqual"><code>_.isEqual</code></a>.</p>
@@ -541,11 +567,11 @@ return := Iterator</code></pre>
         </li>
         
         
-        <li id="section-25">
+        <li id="section-27">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-25">&#182;</a>
+                <a class="pilcrow" href="#section-27">&#182;</a>
               </div>
               <p>Send received values until <code>func</code> returns falsy.</p>
 <pre><code>func := function(Value) Boolean
@@ -570,11 +596,11 @@ return := Iterator</code></pre>
         </li>
         
         
-        <li id="section-26">
+        <li id="section-28">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-26">&#182;</a>
+                <a class="pilcrow" href="#section-28">&#182;</a>
               </div>
               <p>Send no received values until <code>func</code> returns falsy.</p>
 <pre><code>func := function(Value) Boolean
@@ -598,13 +624,13 @@ return := Iterator</code></pre>
         </li>
         
         
-        <li id="section-27">
+        <li id="section-29">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-27">&#182;</a>
+                <a class="pilcrow" href="#section-29">&#182;</a>
               </div>
-              <p>Send the last value after reeiving no values for <code>wait</code> ms.</p>
+              <p>Send the last value after receiving no values for <code>wait</code> ms.</p>
 <pre><code>wait := Number
 return := Iterator</code></pre>
 
@@ -617,11 +643,11 @@ return := Iterator</code></pre>
         </li>
         
         
-        <li id="section-28">
+        <li id="section-30">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-28">&#182;</a>
+                <a class="pilcrow" href="#section-30">&#182;</a>
               </div>
               <p>Send no more than one value per <code>wait</code> ms.</p>
 <pre><code>wait := Number
@@ -636,11 +662,11 @@ return := Iterator</code></pre>
         </li>
         
         
-        <li id="section-29">
+        <li id="section-31">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-29">&#182;</a>
+                <a class="pilcrow" href="#section-31">&#182;</a>
               </div>
               <p>Send incoming values after a delay of <code>wait</code> ms. This relies on the
 scheduler, so order cannot be guaranteed.</p>
@@ -659,19 +685,34 @@ return := Iterator</code></pre>
         </li>
         
         
-        <li id="section-30">
+        <li id="section-32">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-30">&#182;</a>
+                <a class="pilcrow" href="#section-32">&#182;</a>
               </div>
               <p>Turn incoming values into a resolved promise for a value.</p>
 <pre><code>return := Iterator</code></pre>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>iter.promise = _.once(<span class="keyword">function</span>() {
-    <span class="function"><span class="keyword">function</span> <span class="title">promise</span><span class="params">()</span> {</span>
+            <div class="content"><div class='highlight'><pre>iter.promise = _.once(<span class="keyword">function</span>() {</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-33">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-33">&#182;</a>
+              </div>
+              <pre><code>value := Value
+return := $.Deferred</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="function"><span class="keyword">function</span> <span class="title">promise</span><span class="params">(<span class="comment">/*value*/</span>)</span> {</span>
         <span class="keyword">return</span> jQuery.Deferred().resolveWith(<span class="keyword">this</span>, arguments).promise();
     }
     <span class="keyword">return</span> iter.map(promise);
@@ -680,21 +721,34 @@ return := Iterator</code></pre>
         </li>
         
         
-        <li id="section-31">
+        <li id="section-34">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-31">&#182;</a>
+                <a class="pilcrow" href="#section-34">&#182;</a>
               </div>
               <p>Remove promise wrappers. Order is not guaranteed.</p>
-<pre><code>promise := $.Deferred
-send := function(Value)
-return := Iterator</code></pre>
+<pre><code>return := Iterator</code></pre>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>iter.unpromise = _.once(<span class="keyword">function</span>() {
-    <span class="function"><span class="keyword">function</span> <span class="title">unpromise</span><span class="params">(promise, send)</span> {</span>
+            <div class="content"><div class='highlight'><pre>iter.unpromise = _.once(<span class="keyword">function</span>() {</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-35">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-35">&#182;</a>
+              </div>
+              <pre><code>promise := $.Deferred
+send := Send</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="function"><span class="keyword">function</span> <span class="title">unpromise</span><span class="params">(promise, send)</span> {</span>
         promise.done(send);
     }
     <span class="keyword">return</span> unpromise;
@@ -703,11 +757,11 @@ return := Iterator</code></pre>
         </li>
         
         
-        <li id="section-32">
+        <li id="section-36">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-32">&#182;</a>
+                <a class="pilcrow" href="#section-36">&#182;</a>
               </div>
               <p>Call <code>abort</code> on the previous value sent when sending a new value. This
 iterator can be used in a stream of XHRs to cancel the currently running XHR
@@ -716,8 +770,22 @@ when receiving a new one.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>iter.abortLast = _.once(<span class="keyword">function</span>() {
-    <span class="function"><span class="keyword">function</span> <span class="title">abortLast</span><span class="params">(current, last)</span> {</span>
+            <div class="content"><div class='highlight'><pre>iter.abortLast = _.once(<span class="keyword">function</span>() {</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-37">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-37">&#182;</a>
+              </div>
+              <pre><code>current, last := Value</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="function"><span class="keyword">function</span> <span class="title">abortLast</span><span class="params">(current, last)</span> {</span>
         last.abort();
         <span class="keyword">return</span> current;
     }
@@ -730,19 +798,34 @@ when receiving a new one.</p>
         </li>
         
         
-        <li id="section-33">
+        <li id="section-38">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-33">&#182;</a>
+                <a class="pilcrow" href="#section-38">&#182;</a>
               </div>
               <p>Map promises through a filter. Order is not guaranteed.</p>
-<pre><code>return := Iterator</code></pre>
+<pre><code>done := function(/*...*/) Value
+return := Iterator</code></pre>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>iter.mapPromise = <span class="keyword">function</span>(done) {
-    <span class="function"><span class="keyword">function</span> <span class="title">mapPromise</span><span class="params">(promise)</span> {</span>
+            <div class="content"><div class='highlight'><pre>iter.mapPromise = <span class="keyword">function</span>(done) {</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-39">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-39">&#182;</a>
+              </div>
+              <pre><code>promise, return := $.Deferred</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="function"><span class="keyword">function</span> <span class="title">mapPromise</span><span class="params">(promise)</span> {</span>
         <span class="keyword">return</span> promise.then(done);
     }
     <span class="keyword">return</span> iter.map(mapPromise);
@@ -751,27 +834,34 @@ when receiving a new one.</p>
         </li>
         
         
-        <li id="section-34">
+        <li id="section-40">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-34">&#182;</a>
+                <a class="pilcrow" href="#section-40">&#182;</a>
               </div>
               <p>Build an iterator. Pass an even number of arguments, alternating between the
 name of an iterator in <code>frp.iter</code> and an array of arguments.</p>
-<pre><code>arguments := String, Array, String, Array, ...
+<pre><code>arguments := String, Array || null, String, Array || null, ...
 return := Iterator</code></pre>
 
             </div>
             
             <div class="content"><div class='highlight'><pre>iter.build = <span class="keyword">function</span>(<span class="comment">/*name1, args1, name2, args2, ...*/</span>) {
     <span class="keyword">var</span> len = arguments.length;
-    frp.assert((len % <span class="number">2</span>) === <span class="number">0</span>);
+    frp.assert((len % <span class="number">2</span>) === <span class="number">0</span>, <span class="string">'build() requires an even number of arguments'</span>);
 
     <span class="keyword">var</span> chainArgs = [];
     <span class="keyword">for</span> (<span class="keyword">var</span> i = <span class="number">0</span>; i &lt; len; i += <span class="number">2</span>) {
         <span class="keyword">var</span> name = arguments[i];
         <span class="keyword">var</span> args = arguments[i + <span class="number">1</span>];
+        frp.assert(_.isString(name) &amp;&amp; _.isFunction(iter[name]),
+                   <span class="string">'name must refer to a function in frp.iter'</span>);
+        frp.assert((args === <span class="literal">null</span>) ||
+                   _.isArray(args) ||
+                   (<span class="string">'length'</span> <span class="keyword">in</span> args),
+                   <span class="string">'args must be arralike'</span>);
+
         chainArgs.push(iter[name].apply(<span class="keyword">this</span>, args));
     }
     <span class="keyword">return</span> iter.chain.apply(<span class="keyword">this</span>, chainArgs);
@@ -780,11 +870,11 @@ return := Iterator</code></pre>
         </li>
         
         
-        <li id="section-35">
+        <li id="section-41">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-35">&#182;</a>
+                <a class="pilcrow" href="#section-41">&#182;</a>
               </div>
               <p>Export.</p>
 
@@ -795,11 +885,11 @@ return := Iterator</code></pre>
         </li>
         
         
-        <li id="section-36">
+        <li id="section-42">
             <div class="annotation">
               
               <div class="pilwrap for-h2">
-                <a class="pilcrow" href="#section-36">&#182;</a>
+                <a class="pilcrow" href="#section-42">&#182;</a>
               </div>
               <h2>Vector Clocks</h2>
 
@@ -808,11 +898,11 @@ return := Iterator</code></pre>
         </li>
         
         
-        <li id="section-37">
+        <li id="section-43">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-37">&#182;</a>
+                <a class="pilcrow" href="#section-43">&#182;</a>
               </div>
               <p><a href="http://en.wikipedia.org/wiki/Vector_clock">Vector Clocks</a> provide event
 ordering without requiring time-based synchronization between multiple
@@ -825,11 +915,11 @@ threads of execution.</p>
         </li>
         
         
-        <li id="section-38">
+        <li id="section-44">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-38">&#182;</a>
+                <a class="pilcrow" href="#section-44">&#182;</a>
               </div>
               <p>Create a new vector clock.</p>
 <pre><code>return := VectorClock</code></pre>
@@ -841,11 +931,11 @@ threads of execution.</p>
         </li>
         
         
-        <li id="section-39">
+        <li id="section-45">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-39">&#182;</a>
+                <a class="pilcrow" href="#section-45">&#182;</a>
               </div>
               <p>Wrap the constructor for ease.</p>
 <pre><code>return := VectorClock</code></pre>
@@ -859,11 +949,11 @@ threads of execution.</p>
         </li>
         
         
-        <li id="section-40">
+        <li id="section-46">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-40">&#182;</a>
+                <a class="pilcrow" href="#section-46">&#182;</a>
               </div>
               <p>Map names to integers. Since vector clocks are read-only structures, it&#39;s
 safe to use this so long as the name <code>clocks</code> is overridden in new instances.</p>
@@ -879,11 +969,11 @@ safe to use this so long as the name <code>clocks</code> is overridden in new in
         </li>
         
         
-        <li id="section-41">
+        <li id="section-47">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-41">&#182;</a>
+                <a class="pilcrow" href="#section-47">&#182;</a>
               </div>
               <p>Get the value of a key in the clock. Returns an integer &gt;= 0.</p>
 <pre><code>key := String
@@ -898,11 +988,11 @@ return := Number, integer &gt; 0</code></pre>
         </li>
         
         
-        <li id="section-42">
+        <li id="section-48">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-42">&#182;</a>
+                <a class="pilcrow" href="#section-48">&#182;</a>
               </div>
               <p>Return <code>true</code> iff this clock is a descendant of <code>other</code>.</p>
 <pre><code>other := VectorClock
@@ -919,11 +1009,11 @@ return := Boolean</code></pre>
         </li>
         
         
-        <li id="section-43">
+        <li id="section-49">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-43">&#182;</a>
+                <a class="pilcrow" href="#section-49">&#182;</a>
               </div>
               <p>Merge this vector clock with another.</p>
 <pre><code>other := VectorClock
@@ -952,11 +1042,11 @@ return := VectorClock</code></pre>
         </li>
         
         
-        <li id="section-44">
+        <li id="section-50">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-44">&#182;</a>
+                <a class="pilcrow" href="#section-50">&#182;</a>
               </div>
               <p>Return a vector clock with <code>name</code> incremented by 1.</p>
 <pre><code>name := String
@@ -974,11 +1064,11 @@ return := VectorClock</code></pre>
         </li>
         
         
-        <li id="section-45">
+        <li id="section-51">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-45">&#182;</a>
+                <a class="pilcrow" href="#section-51">&#182;</a>
               </div>
               <p>Export.</p>
 
@@ -989,11 +1079,11 @@ return := VectorClock</code></pre>
         </li>
         
         
-        <li id="section-46">
+        <li id="section-52">
             <div class="annotation">
               
               <div class="pilwrap for-h2">
-                <a class="pilcrow" href="#section-46">&#182;</a>
+                <a class="pilcrow" href="#section-52">&#182;</a>
               </div>
               <h2>Event Streams</h2>
 
@@ -1002,11 +1092,11 @@ return := VectorClock</code></pre>
         </li>
         
         
-        <li id="section-47">
+        <li id="section-53">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-47">&#182;</a>
+                <a class="pilcrow" href="#section-53">&#182;</a>
               </div>
               
             </div>
@@ -1016,11 +1106,11 @@ return := VectorClock</code></pre>
         </li>
         
         
-        <li id="section-48">
+        <li id="section-54">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-48">&#182;</a>
+                <a class="pilcrow" href="#section-54">&#182;</a>
               </div>
               <p>Create an event stream. Some streams are hooked to native (external) event
 handlers. Others must be triggered directly by calling <code>emit</code>.</p>
@@ -1038,11 +1128,11 @@ handlers. Others must be triggered directly by calling <code>emit</code>.</p>
         </li>
         
         
-        <li id="section-49">
+        <li id="section-55">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-49">&#182;</a>
+                <a class="pilcrow" href="#section-55">&#182;</a>
               </div>
               <p>Wrap the constructor for ease of use.</p>
 <pre><code>return := Stream</code></pre>
@@ -1056,11 +1146,11 @@ handlers. Others must be triggered directly by calling <code>emit</code>.</p>
         </li>
         
         
-        <li id="section-50">
+        <li id="section-56">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-50">&#182;</a>
+                <a class="pilcrow" href="#section-56">&#182;</a>
               </div>
               <p>By default, use an identity mapping for incoming events. Set <code>iter</code> to any
 <code>Iterator</code> to modify the incoming event stream.</p>
@@ -1072,11 +1162,11 @@ handlers. Others must be triggered directly by calling <code>emit</code>.</p>
         </li>
         
         
-        <li id="section-51">
+        <li id="section-57">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-51">&#182;</a>
+                <a class="pilcrow" href="#section-57">&#182;</a>
               </div>
               <p>Set the iterator for this stream.</p>
 <pre><code>iterator := Iterator
@@ -1092,11 +1182,11 @@ return := this</code></pre>
         </li>
         
         
-        <li id="section-52">
+        <li id="section-58">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-52">&#182;</a>
+                <a class="pilcrow" href="#section-58">&#182;</a>
               </div>
               <p>Build an iterator for this stream.</p>
 <pre><code>arguments := see frp.iter.build
@@ -1112,11 +1202,11 @@ return := this</code></pre>
         </li>
         
         
-        <li id="section-53">
+        <li id="section-59">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-53">&#182;</a>
+                <a class="pilcrow" href="#section-59">&#182;</a>
               </div>
               <p>Receive an event. This function is not usually called directly, but rather by
 callbacks from upstream even signals.</p>
@@ -1131,11 +1221,11 @@ callbacks from upstream even signals.</p>
         </li>
         
         
-        <li id="section-54">
+        <li id="section-60">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-54">&#182;</a>
+                <a class="pilcrow" href="#section-60">&#182;</a>
               </div>
               <p>Call <code>onEmit</code> callbacks with optional <code>value</code>. Because of the implementation,
 all arguments passed will be emitted. It is not recommended to use multiple
@@ -1153,11 +1243,11 @@ return := this</code></pre>
         </li>
         
         
-        <li id="section-55">
+        <li id="section-61">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-55">&#182;</a>
+                <a class="pilcrow" href="#section-61">&#182;</a>
               </div>
               <p>Cancel all event emission. Call <code>onCancel</code> callbacks.</p>
 <pre><code>return := Stream</code></pre>
@@ -1173,11 +1263,11 @@ return := this</code></pre>
         </li>
         
         
-        <li id="section-56">
+        <li id="section-62">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-56">&#182;</a>
+                <a class="pilcrow" href="#section-62">&#182;</a>
               </div>
               <p>Send values from this stream to another stream.</p>
 <pre><code>stream := Stream
@@ -1193,11 +1283,11 @@ return := this</code></pre>
         </li>
         
         
-        <li id="section-57">
+        <li id="section-63">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-57">&#182;</a>
+                <a class="pilcrow" href="#section-63">&#182;</a>
               </div>
               <p>Stop sending values from this stream to another stream.</p>
 <pre><code>stream := Stream
@@ -1213,11 +1303,11 @@ return := this</code></pre>
         </li>
         
         
-        <li id="section-58">
+        <li id="section-64">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-58">&#182;</a>
+                <a class="pilcrow" href="#section-64">&#182;</a>
               </div>
               <p>Return <code>true</code> iff this stream sends to the other stream.</p>
 <pre><code>stream := Stream
@@ -1232,11 +1322,11 @@ return := Boolean</code></pre>
         </li>
         
         
-        <li id="section-59">
+        <li id="section-65">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-59">&#182;</a>
+                <a class="pilcrow" href="#section-65">&#182;</a>
               </div>
               <p>Create a stream that emits events from all argument streams.</p>
 <pre><code>arguments := nested array(s) of Stream
@@ -1254,11 +1344,11 @@ return := Stream</code></pre>
         </li>
         
         
-        <li id="section-60">
+        <li id="section-66">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-60">&#182;</a>
+                <a class="pilcrow" href="#section-66">&#182;</a>
               </div>
               <p>Merge this stream with other streams.</p>
 <pre><code>arguments := nested array(s) of Stream
@@ -1273,11 +1363,11 @@ return := Stream</code></pre>
         </li>
         
         
-        <li id="section-61">
+        <li id="section-67">
             <div class="annotation">
               
               <div class="pilwrap for-h2">
-                <a class="pilcrow" href="#section-61">&#182;</a>
+                <a class="pilcrow" href="#section-67">&#182;</a>
               </div>
               <h2>External Event Sources (aka Signals)</h2>
 
@@ -1286,11 +1376,11 @@ return := Stream</code></pre>
         </li>
         
         
-        <li id="section-62">
+        <li id="section-68">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-62">&#182;</a>
+                <a class="pilcrow" href="#section-68">&#182;</a>
               </div>
               <p>Create a stream bound to a dom event using jQuery. See docs for
 <a href="http://api.jquery.com/jQuery/">jQuery</a> regarding arguments.</p>
@@ -1321,11 +1411,11 @@ return := Stream</code></pre>
         </li>
         
         
-        <li id="section-63">
+        <li id="section-69">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-63">&#182;</a>
+                <a class="pilcrow" href="#section-69">&#182;</a>
               </div>
               <p>Trigger via google maps events.</p>
 <pre><code>source := google.maps.Object
@@ -1351,11 +1441,11 @@ return := Stream</code></pre>
         </li>
         
         
-        <li id="section-64">
+        <li id="section-70">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-64">&#182;</a>
+                <a class="pilcrow" href="#section-70">&#182;</a>
               </div>
               <p>Call <code>sample</code> to emit a value every <code>wait</code> ms. Very small values of <code>wait</code>
 will produce unexpected behavior.</p>
@@ -1381,11 +1471,11 @@ return := Stream</code></pre>
         </li>
         
         
-        <li id="section-65">
+        <li id="section-71">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-65">&#182;</a>
+                <a class="pilcrow" href="#section-71">&#182;</a>
               </div>
               <p>Export.</p>
 
@@ -1396,11 +1486,11 @@ return := Stream</code></pre>
         </li>
         
         
-        <li id="section-66">
+        <li id="section-72">
             <div class="annotation">
               
               <div class="pilwrap for-h2">
-                <a class="pilcrow" href="#section-66">&#182;</a>
+                <a class="pilcrow" href="#section-72">&#182;</a>
               </div>
               <h2>Stream Proxy</h2>
 
@@ -1409,11 +1499,11 @@ return := Stream</code></pre>
         </li>
         
         
-        <li id="section-67">
+        <li id="section-73">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-67">&#182;</a>
+                <a class="pilcrow" href="#section-73">&#182;</a>
               </div>
               <p>Sometimes an event source is available before a sink or vice-versa. <code>Proxy</code>
 helps by providing named <code>Stream</code>s that can be chained as sources or sinks of
@@ -1426,11 +1516,11 @@ particular values.</p>
         </li>
         
         
-        <li id="section-68">
+        <li id="section-74">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-68">&#182;</a>
+                <a class="pilcrow" href="#section-74">&#182;</a>
               </div>
               <p>Make a <code>Proxy</code></p>
 <pre><code>return := Proxy</code></pre>
@@ -1444,11 +1534,11 @@ particular values.</p>
         </li>
         
         
-        <li id="section-69">
+        <li id="section-75">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-69">&#182;</a>
+                <a class="pilcrow" href="#section-75">&#182;</a>
               </div>
               <p>Provide a non-<code>new</code> way of constructing instances.
     return := Proxy</p>
@@ -1462,11 +1552,11 @@ particular values.</p>
         </li>
         
         
-        <li id="section-70">
+        <li id="section-76">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-70">&#182;</a>
+                <a class="pilcrow" href="#section-76">&#182;</a>
               </div>
               <p>Get a stream by name, creating it iff it does not yet exist.</p>
 <pre><code>name := String
@@ -1482,11 +1572,11 @@ return := Stream</code></pre>
         </li>
         
         
-        <li id="section-71">
+        <li id="section-77">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-71">&#182;</a>
+                <a class="pilcrow" href="#section-77">&#182;</a>
               </div>
               <p>Export.</p>
 
