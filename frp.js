@@ -86,7 +86,7 @@ frp.heir       = heir;
 // ----------------------------
 //
 // This is a library of standard iterators for building iteration chains within
-// `Stream`s. Each `Iterator` is a function with the same signature. every
+// `Stream`s. Each `Iterator` is a function with the same signature. Every
 // `frp.iter` function returns an `Iterator`.
 
 /* globals frp */
@@ -94,8 +94,6 @@ var iter = {};
 
 // Send every received value.
 //
-//     value := Value
-//     send := Send
 //     return := Iterator
 iter.identity = _.once(function() {
     function identity(value, send) {
@@ -195,8 +193,10 @@ iter.constant = function(value) {
 //     n := Number, > 1
 //     return := Iterator
 iter.lastN = function(n) {
-    frp.assert(n > 1);
+    frp.assert(n > 1, 'lastN requires n > 1');
 
+    //     values := [Value, ...]
+    //     value, return := Value
     function lastN(values, value) {
         var next = [value].concat(values);
         next.length = Math.min(next.length, n);
@@ -212,6 +212,8 @@ iter.lastN = function(n) {
 iter.atLeastN = function(n) {
     frp.assert(n > 0);
 
+    //     args := Array-like
+    //     return := Boolean
     function atLeastN(args) {
         return args.length >= n;
     }
@@ -223,8 +225,8 @@ iter.atLeastN = function(n) {
 //     once, then, return := Iterator
 iter.onceThen = function(once, then) {
     var current = function() {
-        once.apply(this, arguments);
         current = then;
+        once.apply(this, arguments);
     };
     function onceThen() {
         current.apply(this, arguments);
@@ -290,7 +292,7 @@ iter.dropWhile = function(func) {
     return dropWhile;
 };
 
-// Send the last value after reeiving no values for `wait` ms.
+// Send the last value after receiving no values for `wait` ms.
 //
 //     wait := Number
 //     return := Iterator
@@ -322,7 +324,9 @@ iter.delay = function(wait) {
 //
 //     return := Iterator
 iter.promise = _.once(function() {
-    function promise() {
+    //     value := Value
+    //     return := $.Deferred
+    function promise(/*value*/) {
         return jQuery.Deferred().resolveWith(this, arguments).promise();
     }
     return iter.map(promise);
@@ -330,10 +334,10 @@ iter.promise = _.once(function() {
 
 // Remove promise wrappers. Order is not guaranteed.
 //
-//     promise := $.Deferred
-//     send := function(Value)
 //     return := Iterator
 iter.unpromise = _.once(function() {
+    //     promise := $.Deferred
+    //     send := Send
     function unpromise(promise, send) {
         promise.done(send);
     }
@@ -346,6 +350,7 @@ iter.unpromise = _.once(function() {
 //
 //     return := Iterator
 iter.abortLast = _.once(function() {
+    //     current, last := Value
     function abortLast(current, last) {
         last.abort();
         return current;
@@ -358,8 +363,10 @@ iter.abortLast = _.once(function() {
 
 // Map promises through a filter. Order is not guaranteed.
 //
+//     done := function(/*...*/) Value
 //     return := Iterator
 iter.mapPromise = function(done) {
+    //     promise, return := $.Deferred
     function mapPromise(promise) {
         return promise.then(done);
     }
@@ -369,16 +376,23 @@ iter.mapPromise = function(done) {
 // Build an iterator. Pass an even number of arguments, alternating between the
 // name of an iterator in `frp.iter` and an array of arguments.
 //
-//     arguments := String, Array, String, Array, ...
+//     arguments := String, Array || null, String, Array || null, ...
 //     return := Iterator
 iter.build = function(/*name1, args1, name2, args2, ...*/) {
     var len = arguments.length;
-    frp.assert((len % 2) === 0);
+    frp.assert((len % 2) === 0, 'build() requires an even number of arguments');
 
     var chainArgs = [];
     for (var i = 0; i < len; i += 2) {
         var name = arguments[i];
         var args = arguments[i + 1];
+        frp.assert(_.isString(name) && _.isFunction(iter[name]),
+                   'name must refer to a function in frp.iter');
+        frp.assert((args === null) ||
+                   _.isArray(args) ||
+                   ('length' in args),
+                   'args must be arralike');
+
         chainArgs.push(iter[name].apply(this, args));
     }
     return iter.chain.apply(this, chainArgs);
@@ -684,4 +698,16 @@ Proxy.prototype.get = function(name) {
 
 // Export.
 frp.Proxy = Proxy;
+jQuery.fn.extend({
+    // Call `frp.Stream.$()` conveniently from the jQuery API.
+    //
+    //     event := String
+    //     selector := String
+    //     return := frp.Stream
+    'toStream': function(/*event, selector?*/) {
+        var args = [this];
+        args.push.apply(args, arguments);
+        return frp.Stream.$.apply(frp.Stream, args);
+    }
+});
 }).call(this);

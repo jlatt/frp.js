@@ -1583,6 +1583,30 @@ return := Stream</code></pre>
             </div>
             
             <div class="content"><div class='highlight'><pre>frp.Proxy = Proxy;
+jQuery.fn.extend({</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-78">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-78">&#182;</a>
+              </div>
+              <p>Call <code>frp.Stream.$()</code> conveniently from the jQuery API.</p>
+<pre><code>event := String
+selector := String
+return := frp.Stream</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="string">'toStream'</span>: <span class="keyword">function</span>(<span class="comment">/*event, selector?*/</span>) {
+        <span class="keyword">var</span> args = [<span class="keyword">this</span>];
+        args.push.apply(args, arguments);
+        <span class="keyword">return</span> frp.Stream.$.apply(frp.Stream, args);
+    }
+});
 }).call(<span class="keyword">this</span>);</pre></div></div>
             
         </li>
