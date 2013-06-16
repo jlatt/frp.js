@@ -76,3 +76,5 @@ test('merge', 5, function() {
         ok(stream.sendsTo(merged));
     }, this);
 });
+
+module('XHR');
