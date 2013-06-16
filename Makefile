@@ -1,4 +1,4 @@
-files = src/__init__.js src/util.js src/iterator.js src/vectorclock.js src/stream.js src/proxy.js
+files = src/__init__.js src/util.js src/iterator.js src/vectorclock.js src/stream.js src/proxy.js src/jquery.frp.js
 target = frp.js
 
 .PHONY: clean test lint
