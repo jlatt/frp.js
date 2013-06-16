@@ -27,19 +27,21 @@ function returnZero() {
 // Get the value of a key in the clock. Returns an integer >= 0.
 //
 //     key := String
-//     return := Number, integer > 0
+//     return := Number, integer >= 0
 VectorClock.prototype.getClock = function(key) {
     return frp.getDefault.call(this, this.clocks, key, returnZero);
 };
+
+function isDescendant(value, key) {
+    return this.getClock(key) >= value;
+}
 
 // Return `true` iff this clock is a descendant of `other`.
 //
 //     other := VectorClock
 //     return := Boolean
 VectorClock.prototype.descends = function(other) {
-    return _.all(other.clocks, function(value, key) {
-        return this.getClock(key) >= value;
-    }, this);
+    return _.all(other.clocks, isDescendant, this);
 };
 
 // Merge this vector clock with another.
