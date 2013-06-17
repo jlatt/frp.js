@@ -19,15 +19,3 @@ test('getDefault', function() {
     strictEqual(frp.getDefault(test, 'bar', returnZero), undefined);
     strictEqual(frp.getDefault(test, 'baz', returnZero), 0);
 });
-
-test('heir', function() {
-    var a = {'foo': true};
-    var b = frp.heir(a);
-    b.bar = true;
-    var c = frp.heir(b);
-    strictEqual(b.foo, true);
-    strictEqual(c.foo, true);
-    strictEqual(c.bar, true);
-    c.foo = false;
-    strictEqual(c.foo, false);
-});

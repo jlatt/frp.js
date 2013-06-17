@@ -30,17 +30,6 @@ function getDefault(object, key, makeDefaultValue) {
     return value;
 }
 
-// Create a prototypal heir of an object.
-//
-//     object := Object
-//     return := Object
-function heir(object) {
-    function Heir() {}
-    Heir.prototype = object;
-    return new Heir();
-}
-
 // Export.
 frp.assert     = assert;
 frp.getDefault = getDefault;
-frp.heir       = heir;
