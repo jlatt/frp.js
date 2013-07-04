@@ -2,14 +2,15 @@
 // -----------------
 /* globals frp */
 
-// If `condition` is falsy, throw an error.
+// If `func` returns falsy, throw an error.
 //
-//     condition := Value
-//     message := String
+//     func := Function
+//     value := Value
 //     throws := Error
-function assert(condition, message/*?*/) {
-    if (!condition) {
-        throw new Error(message || 'assertion failed');
+function assert(func/*, value, ...*/) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    if (!func.apply(this, args)) {
+        throw new Error('assertion failed');
     }
 }
 
@@ -22,6 +23,10 @@ function assert(condition, message/*?*/) {
 //     makeDefaultValue := function(Object, String, makeDefaultValue) Value
 //     return := Value
 function getDefault(object, key, makeDefaultValue) {
+    assert(_.isObject, object);
+    assert(_.isString, key);
+    assert(_.isFunction, makeDefaultValue);
+
     if (key in object) {
         return object[key];
     }
@@ -35,6 +40,8 @@ function getDefault(object, key, makeDefaultValue) {
 //     object := Object
 //     return := Object
 function heir(object) {
+    assert(_.isObject, object);
+
     function Heir() {}
     Heir.prototype = object;
     return new Heir();
