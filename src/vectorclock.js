@@ -1,80 +1,130 @@
-// Vector Clocks
-// -------------
+// ## Vector Clocks
 //
 // [Vector Clocks](http://en.wikipedia.org/wiki/Vector_clock) provide event
 // ordering without requiring time-based synchronization between multiple
 // threads of execution.
+//     Key := String
+//     Count := Number, int >= 0
 /* globals frp */
 
-// Create a new vector clock.
+// Create a new vector clock. These vector clocks can represent clocks for
+// individual and sets of values. We use the term *unified* to indicate a clock
+// which does not have multiple values for a key. The collection of values
+// represented by a unified clock have consistent histories. In the state
+// machine, this usually means that it is safe to execute code requiring those
+// multiple values.
 //
+//     keys := [Key, ...]
 //     return := VectorClock
-function VectorClock() {}
+function VectorClock(keys/*?*/) {
+    this.keys = _.isObject(keys) ? keys : {};
+}
+
+// ### class methods
 
 // Wrap the constructor for ease.
 //
+//     keys := [Key, ...]
 //     return := VectorClock
-VectorClock.create = function() {
-    return new VectorClock();
+VectorClock.create = function(keys/*?*/) {
+    return new VectorClock(keys);
 };
 
-// Map names to integers. Since vector clocks are read-only structures, it's
-// safe to use this so long as the name `clocks` is overridden in new instances.
-VectorClock.prototype.clocks = {};
-
-function returnZero() {
-    return 0;
-}
-
-// Get the value of a key in the clock. Returns an integer >= 0.
+// Merge several vector clocks together. Clock values are listed uniquely in
+// order.
 //
-//     key := String
-//     return := Number, integer > 0
-VectorClock.prototype.getClock = function(key) {
-    return frp.getDefault.call(this, this.clocks, key, returnZero);
-};
-
-// Return `true` iff this clock is a descendant of `other`.
-//
-//     other := VectorClock
-//     return := Boolean
-VectorClock.prototype.descends = function(other) {
-    return _.all(other.clocks, function(value, key) {
-        return this.getClock(key) >= value;
-    }, this);
-};
-
-// Merge this vector clock with another.
-//
-//     other := VectorClock
+//     clocks := [VectorClock, ...]
 //     return := VectorClock
-VectorClock.prototype.merge = function(other) {
-    var merged = VectorClock.create();
-    merged.clocks = frp.heir(merged.clocks);
-    var vclocks = _.chain([this, other]);
-    vclocks
-        .pluck('clocks')
+VectorClock.merge = function(clocks) {
+    var _keys = _.chain(clocks)
+        .pluck('keys');
+    var clock = new VectorClock();
+    _.chain(clocks)
+        .pluck('keys')
         .map(_.keys)
-        .union()
+        .flatten(/*shallow=*/true)
         .sort()
         .uniq(/*sorted=*/true)
         .each(function(key) {
-            merged.clocks[key] = vclocks
-                .invoke('getClock', key)
-                .max()
+            clock.keys[key] = _keys
+                .pluck(key)
+                .compact()
+                .flatten(/*shallow=*/true)
+                .sort()
+                .uniq(/*sorted=*/true)
                 .value();
         }, this);
+    return clock;
 };
 
-// Return a vector clock with `name` incremented by 1.
+// ### instance methods
+
+// Get the keyed value, returning a default if necessary.]
 //
-//     name := String
+//     key := Key
+//     return := [Count, ...]
+VectorClock.prototype.get = function(key) {
+    return frp.getDefault.call(this, this.keys, function() {
+        return [0];
+    });
+};
+
+// Return `true` iff the clock is unified.
+//
+//     return := Boolean
+VectorClock.prototype.isUnified = function() {
+    return _.chain(this.keys)
+        .values()
+        .pluck('length')
+        .all(function(length) { return length === 1; })
+        .value();
+};
+
+// ### constructors
+
+// Copy a vector clock's keys to a new instance.
+//
 //     return := VectorClock
-VectorClock.prototype.increment = function(name) {
-    var incr = VectorClock.create();
-    incr.clocks = frp.heir(this.clocks);
-    incr.clocks[name] = incr.getClock(name) + 1;
-    return incr;
+VectorClock.prototype.copy = function() {
+    var vclock = new VectorClock();
+    _.extend(vclock.keys, this.keys);
+    return vclock;
+};
+
+// Return a copy with `name` incremented by 1.
+//
+//     key := Key
+//     return := VectorClock
+VectorClock.prototype.increment = function(key) {
+    var vclock = this.copy();
+    frp.assert(function() {
+        return vclock.hasOwnProperty(key) && (vclock[key].length === 1);
+    });
+    ++vclock[key][0];
+    return vclock;
+};
+
+// Return a vector clock with only the maximum values appearing in each key
+// set. The returned clock is always unified.
+//
+//     return := VectorClock
+VectorClock.prototype.max = function() {
+    var vclock = this.copy();
+    _.each(vclock.keys, function(counts, key) {
+        vclock.keys[key] = [_.max(counts)];
+    }, this);
+    return vclock;
+};
+
+// Return a vector clock that follows only a specific key from the current
+// clock.
+//
+//     key := Key
+//     return := VectorClock
+VectorClock.prototype.next = function(key) {
+    var keys = {};
+    keys[key] = this.get(key) + 1;
+    return new VectorClock(keys);
 };
 
 // Export.

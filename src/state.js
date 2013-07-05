@@ -1,5 +1,7 @@
 /* globals frp */
 
+// ### utility functions
+
 function isKeys(keys) {
     return (_.isArray(keys) &&
             (keys.length > 0) &&
@@ -8,109 +10,6 @@ function isKeys(keys) {
 
 function isInstance(object, Class) {
     return object instanceof Class;
-}
-
-function VectorClock(keys) {
-    this.keys = _.isObject(keys) ? keys : {};
-}
-
-// ### class methods
-
-VectorClock.merge = function(clocks) {
-    var _keys = _.chain(clocks)
-        .pluck('keys');
-    var clock = new VectorClock();
-    _.chain(clocks)
-        .pluck('keys')
-        .map(_.keys)
-        .flatten(/*shallow=*/true)
-        .sort()
-        .uniq(/*sorted=*/true)
-        .each(function(key) {
-            clock.keys[key] = _keys
-                .pluck(key)
-                .compact()
-                .flatten(/*shallow=*/true)
-                .sort()
-                .uniq(/*sorted=*/true)
-                .value();
-        }, this);
-    return clock;
-};
-
-// ### instance methods
-
-_.extend(VectorClock.prototype, {
-    'get': function(key) {
-        return frp.getDefault.call(this, this.keys, function() {
-            return [0];
-        });
-    },
-
-    'isUnified': function() {
-        return _.chain(this)
-            .values()
-            .pluck('length')
-            .all(function(length) { return length === 1; })
-            .value();
-    },
-
-    // ### constructors
-
-    'copy': function() {
-        var vclock = new VectorClock();
-        _.extend(vclock.keys, this.keys);
-        return vclock;
-    },
-
-    'increment': function(key) {
-        var vclock = this.copy();
-        frp.assert(function() {
-            return vclock.hasOwnProperty(key) && (vclock[key].length === 1);
-        });
-        ++vclock[key][0];
-        return vclock;
-    },
-
-    'max': function() {
-        var vclock = this.copy();
-        _.each(vclock.keys, function(counts, key) {
-            vclock.keys[key] = [_.max(counts)];
-        }, this);
-        return vclock;
-    },
-
-    'only': function(key) {
-        var keys = {};
-        keys[key] = this.get(key);
-        return new VectorClock(keys);
-    }
-});
-
-// Create a clocked value. It has a name, value, and a list of sources that are
-// clocked values.
-//
-//     key := String
-//     value := Value
-//     clock := Object
-//     return := ClockedValue
-function ClockedValue(key, value, clock) {
-    frp.assert(_.isString, key);
-    frp.assert(_.isObject, clock);
-
-    this.key   = key;
-    this.value = value;
-    this.clock = clock;
-}
-
-// ### instance methods
-
-// Counts are unified iff there is only one unique value.
-//
-//     counts := Array
-//     return := Boolean
-function isUnified(counts) {
-    return counts.length === 1;
 }
 
 function indexMap(array) {
@@ -122,8 +21,25 @@ function indexMap(array) {
     return map;
 }
 
+// Create a named valued associated with a vector clock.
+//
+//     key := String
+//     value := Value
+//     clock := VectorClock
+//     return := ClockedValue
+function ClockedValue(key, value, clock) {
+    frp.assert(_.isString, key);
+    frp.assert(_.isObject, clock);
+    frp.assert(_.isFunction, clock.isUnified);
+    frp.assert.call(clock, clock.isUnified);
+
+    this.key = key;
+    this.value = value;
+    this.clock = clock;
+}
+
 // Create a sources array. This object exists to track clocks and determine if
-// they are unified in an efficient way.
+// they are unified so that the state machine can run code.
 //
 //     keys := [String, ...]
 //     return := Sources
@@ -138,70 +54,78 @@ function Sources(keys) {
     // Previous values
     this.last = {};
 }
-_.extend(Sources.prototype, {
-    'args': function() {
-        var args = [];
-        _.each(this.keyToIndex, function(index, key) {
-            args[index] = this.values[key].value;
-        }, this);
-        return args;
-    },
 
-    // Set an indexed value in the sources array.
-    //
-    //     value := ClockedValue
-    //     return := this
-    'set': function(value) {
-        frp.assert(isInstance, value, ClockedValue);
+Sources.prototype.args = function() {
+    return _.map(this.keys, function(key) {
+        frp.assert.call(this.values, this.values.hasOwnProperty, key);
+        return this.values[key].value;
+    }, this);
+};
 
-        this.last[value.key] = this.values[value.key];
-        this.values[value.key] = value;
-        return this;
-    },
+// Set an indexed value in the sources array.
+//
+//     value := ClockedValue
+//     return := this
+Sources.prototype.set = function(value) {
+    frp.assert(isInstance, value, ClockedValue);
 
-    'valueChanged': function(key) {
-        frp.assert(_.isString, key);
+    this.last[value.key] = this.values[value.key];
+    this.values[value.key] = value;
+    return this;
+};
 
-        if (!this.values.hasOwnProperty(key)) {
-            return false;
-        }
-        var current = this.values[key];
-        if (!this.last.hasOwnProperty(key)) {
-            return true;
-        }
-        var last = this.last[key];
-        return !_.isEqual(current.value, last.value);
-    },
+// Return `true` iff the current value is different from the previous value for
+// a key.
+//
+//     key := String
+//     return := Boolean
+Sources.prototype.valueChanged = function(key) {
+    frp.assert(_.isString, key);
 
-    'getClock': function() {
-        return VectorClock.merge(_.pluck(this.values, 'clock'));
-    },
-
-    // The sources are ready iff there is at least one change, they are all
-    // present, and their clocks are unified.
-    //
-    //     return := Boolean
-    'isReady': function() {
-        return (this.isPresent() &&
-                this.isChanged() &&
-                this.isUnified());
-    },
-
-    'isUnified': function() {
-        return this.getClock().isUnified();
-    },
-
-    'isChanged': function() {
-        return _.any(this.keys, this.valueChanged, this);
-    },
-
-    // Return true iff all values are present.
-    //
-    //     return := Boolean
-    'isPresent': function() {
-        return _.size(this.values) === this.keys.length;
+    if (!this.values.hasOwnProperty(key)) {
+        return false;
     }
-});
+    var current = this.values[key];
+    if (!this.last.hasOwnProperty(key)) {
+        return true;
+    }
+    var last = this.last[key];
+    return !_.isEqual(current.value, last.value);
+};
+
+// Get the merged clock for all received values.
+//
+//     return := VectorClock
+Sources.prototype.getClock = function() {
+    return frp.VectorClock.merge(_.pluck(this.values, 'clock'));
+};
+
+// The sources are ready iff there is at least one change, they are all
+// present, and their clocks are unified.
+//
+//     return := Boolean
+Sources.prototype.isReady = function() {
+    return (this.isPresent() &&
+            this.isChanged() &&
+            this.isUnified());
+};
+
+Sources.prototype.isUnified = function() {
+    return this.getClock().isUnified();
+};
+
+Sources.prototype.isChanged = function() {
+    return _.any(this.keys, this.valueChanged, this);
+};
+
+// Return true iff all values are present.
+//
+//     return := Boolean
+Sources.prototype.isPresent = function() {
+    return _.all(this.keys, function(key) {
+        return this.values.hasOwnProperty(key);
+    }, this);
+};
 
 // Create a `Handle` for undoing stateful operations by attaching
 // callbacks. Return a `Handle` from a function whose actions can be undone
@@ -211,15 +135,31 @@ _.extend(Sources.prototype, {
 function Handle() {
     this.onCancel = $.Callbacks('memory once unique');
 }
-_.extend(Handle.prototype, {
-    // Call cancel callbacks. They are only called once.
-    //
-    //     return := this
-    'cancel': function() {
-        this.onCancel.fireWith(this, [this]);
-        return this;
-    }
-});
+
+// Call cancel callbacks. They are only called once.
+//
+//     return := this
+Handle.prototype.cancel = function() {
+    this.onCancel.fireWith(this, [this]);
+    return this;
+};
+
+// ## state machine
+
+// ### private api
+
+// Add a clocked value to the machine.
+//
+//     value := ClockedValue
+//     return := this
+function setValue(value) {
+    frp.assert(isInstance, value, ClockedValue);
+
+    this.values[value.key] = value.value;
+    this.clock = frp.VectorClock.merge([this.clock, value.clock]).max();
+    this.getCallbacks(value.key).fireWith(this, [value]);
+    return this;
+}
 
 function Binding(state, keys) {
     _.bindAll(this, 'onValue');
@@ -259,7 +199,7 @@ StateChange.prototype = frp.heir(Binding.prototype);
 
 StateChange.prototype.onSources = function() {
     var args = this.sources.args();
-    this.onKeys.apply(this, args);
+    this.onKeys.apply(this.state, args);
 };
 
 function Calculation(state, keys, target, calculate) {
@@ -272,7 +212,7 @@ _.extend(Calculation.prototype, {
     'setTarget': function(value) {
         var clock = this.sources.getClock().increment(this.target);
         var clocked = new ClockedValue(this.target, value, clock);
-        this.state.setValue(clocked);
+        setValue.call(this.state, clocked);
         return this;
     },
 
@@ -354,7 +294,7 @@ function StateMachine() {
     // A map of keys to $.Callbacks
     this.callbacks = {};
     // The global clock, representing all keys present in the system
-    this.clock = new VectorClock();
+    this.clock = frp.VectorClock.create();
     // A map of key to value
     this.values = {};
 }
@@ -379,9 +319,9 @@ _.extend(StateMachine.prototype, {
     'set': function(key, value) {
         frp.assert(_.isString, key);
 
-        var vclock = this.clock.only(key).increment(key);
+        var vclock = this.clock.next(key);
         var clocked = new ClockedValue(key, value, vclock);
-        this.setValue(clocked);
+        setValue.call(this, clocked);
         return this;
     },
 
@@ -452,21 +392,6 @@ _.extend(StateMachine.prototype, {
         }
         var calculation = new Calc(this, keys, target, calculate);
         return calculation.bind();
-    },
-
-//
-
-    // Add a clocked value to the machine.
-    //
-    //     value := ClockedValue
-    //     return := this
-    'setValue': function(value) {
-        frp.assert(isInstance, value, ClockedValue);
-
-        this.values[value.key] = value.value;
-        this.clock = VectorClock.merge([this.clock, value.clock]).max();
-        this.getCallbacks(value.key).fireWith(this, [value]);
-        return this;
     }
 });
 
