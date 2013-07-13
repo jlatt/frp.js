@@ -150,21 +150,6 @@ iter.lastN = function(n) {
     return iter.fold([], lastN);
 };
 
-// Ensure the the argument, which must be array-like, has at least `n`
-// elements. This is often chained with `lastN`.
-//
-//     n := Integer, > 0
-iter.atLeastN = function(n) {
-    frp.assert(n > 0);
-
-    //     args := Array-like
-    //     return := Boolean
-    function atLeastN(args) {
-        return args.length >= n;
-    }
-    return iter.filter(atLeastN);
-};
-
 // For the first value, call `once`. Afterwards, call `then`.
 //
 //     once, then, return := Iterator

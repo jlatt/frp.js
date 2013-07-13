@@ -79,14 +79,6 @@ test('lastN', 5, function() {
     testIter.call(this, NUMBERS, iterator, expectEqual(expect, deepEqual));
 });
 
-test('atLeastN', 3, function() {
-    var testVals = [[1, 3, 4], [1, 2, 3, 4], [5, 4], [5], [2, 3, 4, 5],
-                    [3, 4, 5, 6]];
-    var iterator = iter.atLeastN(4);
-    var expect = [[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]];
-    testIter.call(this, testVals, iterator, expectEqual(expect, deepEqual));
-});
-
 test('onceThen', 5, function() {
     var testVal = 23;
     var iterator = iter.onceThen(
