@@ -5,7 +5,7 @@
 // `Stream`s. Each `Iterator` is a function with the same signature. Every
 // `frp.iter` function returns an `Iterator`.
 
-/* globals frp */
+/* global frp, console */
 var iter = {};
 
 // Send every received value.
@@ -40,6 +40,14 @@ iter.mapApply = function(func) {
     return mapApply;
 };
 
+iter.log = _.once(function() {
+    function log(value) {
+        console.log(value);
+        return value;
+    }
+    return iter.map(log);
+});
+
 // Filter incoming values with `func`.
 //
 //     func := function(Value) Boolean
@@ -51,6 +59,15 @@ iter.filter = function(func) {
         }
     }
     return filter;
+};
+
+iter.filterApply = function(func) {
+    function filterApply(value, send) {
+        if (func.apply(this, value)) {
+            send.call(this, value);
+        }
+    }
+    return filterApply;
 };
 
 // Fold over the incoming stream. Call `func` where `current` begins with value
@@ -66,6 +83,17 @@ iter.fold = function(initial, func) {
         send.call(this, current);
     }
     return fold;
+};
+
+iter.foldApply = function(initial, func) {
+    var current = initial;
+    function foldApply(value, send) {
+        var args = [current];
+        args.push.apply(args, value);
+        current = func.apply(this, args);
+        send.call(this, current);
+    }
+    return foldApply;
 };
 
 // Chain a list of iterator functions together. Each iterator is applied in
@@ -84,9 +112,10 @@ iter.chain = function(/*iterator, ...*/) {
 
     return _.reduceRight(arguments, function(next, current) {
         function chain(value, send) {
-            current.call(this, value, function(value) {
-                next.call(this, value, send);
-            });
+            function sendNext(nextValue) {
+                next.call(this, nextValue, send);
+            }
+            current.call(this, value, sendNext);
         }
         return chain;
     }, iter.identity(), this);
@@ -165,9 +194,9 @@ iter.unique = function(isEqual/*?*/) {
         current = value;
         send.call(this, current);
     }
-    function sendIfEqual(value, send) {
+    function sendIfEqual(value/*, send*/) {
         if (!isEqual.call(this, current, value)) {
-            setAndSend.call(this, value, send);
+            setAndSend.apply(this, arguments);
         }
     }
     return iter.onceThen(setAndSend, sendIfEqual);
@@ -268,16 +297,18 @@ iter.unpromise = _.once(function() {
 iter.abortLast = _.once(function() {
     //     current, last := Value
     function abortLast(current, last) {
-        last.abort();
+        if (_.isObject(last) && _.isFunction(last.abort)) {
+            last.abort();
+        }
         return current;
     }
     return iter.chain(
         iter.lastN(2),
-        iter.atLeastN(2),
         iter.mapApply(abortLast));
 });
 
-// Map promises through a filter. Order is not guaranteed.
+// Map promises through a filter. the order `done` is called on each deferred is
+// not guaranteed, but the chainable deferred are returned in order.
 //
 //     done := function(/*...*/) Value
 //     return := Iterator
@@ -306,8 +337,9 @@ iter.build = function(/*name1, args1, name2, args2, ...*/) {
                    'name must refer to a function in frp.iter');
         frp.assert((args === null) ||
                    _.isArray(args) ||
+                   _.isArguments(args),
                    ('length' in args),
-                   'args must be arralike');
+                   'args must be arraylike');
 
         chainArgs.push(iter[name].apply(this, args));
     }

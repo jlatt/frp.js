@@ -23,7 +23,7 @@ Why not Elm?
 [Elm][elm] is really cool, but it's [Haskell][haskell] that compiles to
 JavaScript. Transpiling gives me the willies. Until native debugging for the
 languages is available in most browsers, you'll still need to understand the
-JavaScript environemnt in order to find issues.
+JavaScript environment in order to find issues.
 
 Why not Flapjax?
 ----------------

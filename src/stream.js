@@ -1,7 +1,7 @@
 // Event Streams
 // -------------
 
-/* globals frp */
+/* global frp */
 
 // Create an event stream. Some streams are hooked to native (external) event
 // handlers. Others must be triggered directly by calling `emit`.
@@ -119,65 +119,44 @@ Stream.prototype.merge = function(/*stream, ...*/) {
 // External Event Sources (aka Signals)
 // ------------------------------------
 
-// Create a stream bound to a dom event using jQuery. See docs for
-// [jQuery](http://api.jquery.com/jQuery/) regarding arguments.
-//
-//     source := jQuery || arguments to jQuery()
-//     event := String
-//     selector := String
-//     return := Stream
-Stream.$ = function(source/*, event, selector?*/) {
-    frp.assert(arguments.length > 1);
+function Sampler(stream, sample, wait, context) {
+    _.bindAll(this, 'emitAndDelay', 'cancel');
+    this.cancel = _.once(this.cancel);
 
-    var $source = jQuery(source);
-    frp.assert($source.length > 0, 'empty jQuery');
+    this.stream = stream;
+    this.sample = sample;
+    this.wait = wait;
+    this.context = context;
 
-    var stream = Stream.create();
-    var args = Array.prototype.slice.call(arguments, 1);
-    args.push(_.bind(stream.emit, stream)); // event handler
-    stream.onCancel.add(function() {
-        $source.off.apply($source, args);
-    });
-    $source.on.apply($source, args);
+    stream.onCancel.add(this.cancel);
+    this.delay();
+}
 
-    return stream;
+Sampler.prototype.delay = function() {
+    this.handle = _.delay(this.emitAndDelay, this.wait);
 };
 
-// Trigger via google maps events.
-//
-//     source := google.maps.Object
-//     event := String
-//     return := Stream
-Stream.gmap = function(source, event) {
-    /* globals google */
-    frp.assert(_.isString(event));
+Sampler.prototype.emitAndDelay = function() {
+    this.stream.emit(this.sample.call(this.context));
+    this.delay();
+};
 
-    var stream = Stream.create();
-    var callback = _.bind(stream.emit, stream);
-    var listener = google.maps.addListener(source, event, callback);
-    stream.onCancel.add(function() {
-        google.maps.removeListener(listener);
-    });
-
-    return stream;
+Sampler.prototype.cancel = function() {
+    window.clearTimeout(this.handle);
+    this.stream.onCancel.remove(this.cancel);
 };
 
 // Call `sample` to emit a value every `wait` ms. Very small values of `wait`
 // will produce unexpected behavior.
 //
 //     sample := function() Value
-//     wait := Number
+//     wait := Number, integer > 0
 //     return := Stream
 Stream.sample = function(sample, wait) {
     frp.assert(wait > 0);
 
     var stream = Stream.create();
-    var handle = window.setInterval(function() {
-        stream.emit(sample());
-    }, wait);
-    stream.onCancel.add(function() {
-        window.clearInterval(handle);
-    });
+    new Sampler(stream, sample, wait, this);
     return stream;
 };
 

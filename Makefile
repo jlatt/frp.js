@@ -1,4 +1,4 @@
-files = src/__init__.js src/util.js src/iterator.js src/vectorclock.js src/stream.js src/proxy.js src/jquery.frp.js
+files = src/__init__.js src/util.js src/iterator.js src/vectorclock.js src/stream.js src/proxy.js src/jquery.frp.js src/google_maps.frp.js
 target = frp.js
 min_target = frp.min.js
 gz_target = frp.min.js.gz

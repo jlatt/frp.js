@@ -129,8 +129,7 @@ test('chain', 4, function() {
         iter.identity(),
         iter.identity(),
         iter.map(function(v) { return [v, 5]; }),
-        iter.mapApply(function(v1, v2) { return v1 + v2; })
-    );
+        iter.mapApply(function(v1, v2) { return v1 + v2; }));
     var expect = [17, 20, 23, 26];
     testIter.call(this, NUMBERS, iterator, function(input, output) {
         strictEqual(output, expect.shift());

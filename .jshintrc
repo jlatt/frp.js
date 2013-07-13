@@ -18,11 +18,11 @@
  "newcap": true,
  "noarg": true,
  "noempty": false,
- "nonew": true,
+ "nonew": false,
  "plusplus": false,
-
  "quotmark": "single",
  "regexp": false,
  "strict": false,
  "trailing": true,
- "undef": true}
+ "undef": true,
+ "unused": true}
