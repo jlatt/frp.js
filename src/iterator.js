@@ -80,7 +80,14 @@ iter.get = function(key) {
 //
 //     return := Iterator
 iter.first = _.once(function() {
-    return iter.get(0);
+    return iter.map(_.first);
+});
+
+// Get the last element from arraylike values in a stream.
+//
+//     return := Iterator
+iter.last = _.once(function() {
+    return iter.map(_.last);
 });
 
 // Map incoming values by applying `value` as an arraylike.
@@ -310,7 +317,7 @@ iter.orderPromises = _.once(function() {
 //
 //     return := Iterator
 iter.abortPreviousPromise = _.once(function() {
-    //     current, previous := jQuery.Deferred
+    //     previous := jQuery.Deferred
     function abortPreviousPromise(previous) {
         if (_.isFunction(previous.abort)) {
             previous.abort();
@@ -333,15 +340,18 @@ iter.abortPreviousPromise = _.once(function() {
 //     return := Iterator
 iter.unpromiseMostRecent = _.once(function() {
     var mostRecent;
+    //     promise := jQuery.Deferred
     function setMostRecent(promise) {
         mostRecent = promise;
     }
+    //     promise := jQuery.Deferred
+    //     send := Send
     function unpromiseMostRecent(promise, send) {
         setMostRecent(promise);
         var context = this;
-        promise.done(function(/*value*/) {
+        promise.done(function(value) {
             if (promise === mostRecent) {
-                send.apply(context, arguments);
+                send.call(context, value);
             }
         });
     }
@@ -379,18 +389,19 @@ iter.chain = function(/*iterator, ...*/) {
 // Build an iterator. Pass an even number of arguments, alternating between the
 // name of an iterator in `frp.iter` and an array of arguments.
 //
-//     arguments := (String, Array || null), ...
+//     name := String
+//     args := Array || null
 //     return := Iterator
-iter.build = function(/*name1, args1, name2, args2, ...*/) {
+iter.build = function(/*(name, args), ...*/) {
     var len = arguments.length;
     frp.assert((len % 2) === 0, 'build requires an even number of arguments');
 
     var chainArgs = [];
     for (var i = 0; i < len; i += 2) {
-        var fname = arguments[i];
+        var name = arguments[i];
         var args = arguments[i + 1];
-        var iterator = iter[fname];
-        frp.assert(_.isFunction(iter[name]),
+        var iterator = iter[name];
+        frp.assert(_.isFunction(iterator),
                    'name must refer to a function in frp.iter');
         chainArgs.push(iterator.apply(this, args));
     }

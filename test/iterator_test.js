@@ -14,7 +14,7 @@ module('iter', {
 });
 
 var iter = frp.iter;
-var VARIED = [5, null, undefined, 'foobar'];
+var VARIED = [5, null, undefined, 'foobar', true];
 var NUMBERS = [1, 2, 3, 4, 5];
 
 function expectEqual(expect, equal) {
@@ -23,13 +23,13 @@ function expectEqual(expect, equal) {
     };
 }
 
-test('identity', 4, function() {
+test('identity', VARIED.length, function() {
     this.testIter(VARIED, iter.identity(), function(input, output) {
         strictEqual(output, input);
     });
 });
 
-test('map', 5, function() {
+test('map', NUMBERS.length, function() {
     function square(v) {
         return v * v;
     }
@@ -74,7 +74,7 @@ test('lastN', 5, function() {
     this.testIter(NUMBERS, iterator, expectEqual(expect, deepEqual));
 });
 
-test('onceThen', 5, function() {
+test('onceThen', NUMBERS.length, function() {
     var testVal = 23;
     var iterator = iter.onceThen(
         iter.map(function(v) { return v + 10; }),
@@ -99,7 +99,5 @@ test('chain', 4, function() {
         iter.map(function(v) { return [v, 5]; }),
         iter.mapApply(function(v1, v2) { return v1 + v2; }));
     var expect = [17, 20, 23, 26];
-    this.testIter(NUMBERS, iterator, function(input, output) {
-        strictEqual(output, expect.shift());
-    });
+    this.testIter(NUMBERS, iterator, expectEqual(expect, strictEqual));
 });
