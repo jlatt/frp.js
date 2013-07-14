@@ -363,7 +363,9 @@ iter.chain = function(/*iterator, ...*/) {
         return arguments[0];
     }
 
-    return _.reduceRight(arguments, function(next, current) {
+    var first = _.last(arguments);
+    var rest = _(arguments).slice(0, -1);
+    return _.reduceRight(rest, function(next, current) {
         function chain(value, send) {
             function sendNext(nextValue) {
                 next.call(this, nextValue, send);
@@ -371,13 +373,13 @@ iter.chain = function(/*iterator, ...*/) {
             current.call(this, value, sendNext);
         }
         return chain;
-    }, iter.identity(), this);
+    }, first, this);
 };
 
 // Build an iterator. Pass an even number of arguments, alternating between the
 // name of an iterator in `frp.iter` and an array of arguments.
 //
-//     arguments := String, Array || null, String, Array || null, ...
+//     arguments := (String, Array || null), ...
 //     return := Iterator
 iter.build = function(/*name1, args1, name2, args2, ...*/) {
     var len = arguments.length;
@@ -385,17 +387,11 @@ iter.build = function(/*name1, args1, name2, args2, ...*/) {
 
     var chainArgs = [];
     for (var i = 0; i < len; i += 2) {
-        var name = arguments[i];
+        var fname = arguments[i];
         var args = arguments[i + 1];
-        var iterator = iter[name];
+        var iterator = iter[fname];
         frp.assert(_.isFunction(iter[name]),
                    'name must refer to a function in frp.iter');
-        frp.assert((args === null) ||
-                   _.isArray(args) ||
-                   _.isArguments(args) ||
-                   ('length' in args),
-                   'args must be arraylike');
-
         chainArgs.push(iterator.apply(this, args));
     }
     return iter.chain.apply(this, chainArgs);
