@@ -14,6 +14,8 @@ function Stream() {
     this.onCancel = jQuery.Callbacks('memory once unique');
 }
 
+// ### class methods
+
 // Wrap the constructor for ease of use.
 //
 //     return := Stream
@@ -21,9 +23,49 @@ Stream.create = function() {
     return new Stream();
 };
 
+// Create a stream that emits events from all argument streams.
+//
+//     arguments := nested array(s) of Stream
+//     return := Stream
+Stream.merge = function(/*stream, ...*/) {
+    var streams = _.flatten(arguments);
+    var merged = this.create();
+    _.invoke(streams, 'sendTo', merged);
+    return merged;
+};
+
+// Call `sample` to emit a value every `wait` ms. Very small values of `wait`
+// will produce unexpected behavior.
+//
+//     sample := Stream function() Value
+//     wait := Number, integer > 0
+//     return := Stream
+Stream.sample = function(sample, wait) {
+    frp.assert(_.isFunction(sample));
+    frp.assert(wait > 0);
+
+    var stream = Stream.create();
+    var handle;
+    function delay() {
+        handle = _.delay(function() {
+            stream.emit(sample.call(stream));
+            delay();
+        }, wait);
+    }
+    stream.onCancel.add(function() {
+        window.clearTimeout(handle);
+    });
+    delay();
+    return stream;
+};
+
+// ### instance properties
+
 // By default, use an identity mapping for incoming events. Set `iter` to any
 // `Iterator` to modify the incoming event stream.
 Stream.prototype.iter = frp.iter.identity();
+
+// ### instance methods
 
 // Set the iterator for this stream.
 //
@@ -38,7 +80,7 @@ Stream.prototype.setIter = function(/*iterator, ...*/) {
 //
 //     arguments := see frp.iter.build
 //     return := this
-Stream.prototype.build = function(/*...*/) {
+Stream.prototype.buildIter = function(/*...*/) {
     this.iter = frp.iter.build.apply(this, arguments);
     return this;
 };
@@ -76,6 +118,8 @@ Stream.prototype.cancel = function() {
 //     stream := Stream
 //     return := this
 Stream.prototype.sendTo = function(stream) {
+    frp.assert(_.isObject(stream) && _.isFunction(stream.receive));
+
     this.onEmit.add(stream.receive);
     return this;
 };
@@ -85,6 +129,8 @@ Stream.prototype.sendTo = function(stream) {
 //     stream := Stream
 //     return := this
 Stream.prototype.unSendTo = function(stream) {
+    frp.assert(_.isObject(stream) && _.isFunction(stream.receive));
+
     this.onEmit.remove(stream.receive);
     return this;
 };
@@ -94,18 +140,9 @@ Stream.prototype.unSendTo = function(stream) {
 //     stream := Stream
 //     return := Boolean
 Stream.prototype.sendsTo = function(stream) {
-    return this.onEmit.has(stream.receive);
-};
+    frp.assert(_.isObject(stream) && _.isFunction(stream.receive));
 
-// Create a stream that emits events from all argument streams.
-//
-//     arguments := nested array(s) of Stream
-//     return := Stream
-Stream.merge = function(/*stream, ...*/) {
-    var streams = _.flatten(arguments);
-    var merged = this.create();
-    _.invoke(streams, 'sendTo', merged);
-    return merged;
+    return this.onEmit.has(stream.receive);
 };
 
 // Merge this stream with other streams.
@@ -113,51 +150,7 @@ Stream.merge = function(/*stream, ...*/) {
 //     arguments := nested array(s) of Stream
 //     return := Stream
 Stream.prototype.merge = function(/*stream, ...*/) {
-    return Stream.merge(this, _.toArray(arguments));
-};
-
-// External Event Sources (aka Signals)
-// ------------------------------------
-
-function Sampler(stream, sample, wait, context) {
-    _.bindAll(this, 'emitAndDelay', 'cancel');
-    this.cancel = _.once(this.cancel);
-
-    this.stream = stream;
-    this.sample = sample;
-    this.wait = wait;
-    this.context = context;
-
-    stream.onCancel.add(this.cancel);
-    this.delay();
-}
-
-Sampler.prototype.delay = function() {
-    this.handle = _.delay(this.emitAndDelay, this.wait);
-};
-
-Sampler.prototype.emitAndDelay = function() {
-    this.stream.emit(this.sample.call(this.context));
-    this.delay();
-};
-
-Sampler.prototype.cancel = function() {
-    window.clearTimeout(this.handle);
-    this.stream.onCancel.remove(this.cancel);
-};
-
-// Call `sample` to emit a value every `wait` ms. Very small values of `wait`
-// will produce unexpected behavior.
-//
-//     sample := function() Value
-//     wait := Number, integer > 0
-//     return := Stream
-Stream.sample = function(sample, wait) {
-    frp.assert(wait > 0);
-
-    var stream = Stream.create();
-    new Sampler(stream, sample, wait, this);
-    return stream;
+    return Stream.merge(this, arguments);
 };
 
 // Export.
