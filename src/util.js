@@ -19,7 +19,7 @@ function assert(condition, message/*?*/) {
 //
 //     object := Object
 //     key := String
-//     makeDefaultValue := function(Object, String, makeDefaultValue) Value
+//     makeDefaultValue := function(object, key, makeDefaultValue) Value
 //     return := Value
 function getDefault(object, key, makeDefaultValue) {
     if (key in object) {

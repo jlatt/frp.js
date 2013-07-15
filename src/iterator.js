@@ -8,15 +8,33 @@
 /* global frp */
 var iter = {};
 
+//     func := function(Value, ...) Value
+//     return := Iterator
 var applyValue = function(func) {
     frp.assert(_.isFunction(func));
 
+    //     args := Array || Arguments
+    //     return := Value
     function applyValue(args) {
         return func.apply(this, args);
     }
     return applyValue;
 };
 
+// Construct an iterator that treats the first argument as an arguments.
+//
+//     iterator, return := Iterator
+var applier = function(iterator) {
+    //     func := function(Value, ...) Value
+    //     return := Iterator
+    function applier(func) {
+        return iterator(applyValue(func));
+    }
+    return applier;
+};
+
+//     func := Function
+//     return := Function
 var not = function(func) {
     frp.assert(_.isFunction(func));
 
@@ -48,12 +66,20 @@ iter.apply = function(func) {
 iter.map = function(func) {
     frp.assert(_.isFunction(func));
 
+    //     value := Value
+    //     send := Send
     function map(value, send) {
         var mapped = func.call(this, value);
         send.call(this, mapped);
     }
     return map;
 };
+
+// Map incoming values by applying `value` as an arraylike. See `iter.map` for
+// arguments.
+//
+//     return := Iterator
+iter.mapApply = applier(iter.map);
 
 // Emit every received value.
 //
@@ -62,13 +88,28 @@ iter.identity = _.once(function() {
     return iter.map(_.identity);
 });
 
-// Pluck a value from an object.
+// Call a named function (with optional arguments) on every received value,
+// emitting the result.
 //
-//     key := String || Number, integer
+//     fname := String
+//     arg := Value
+//     return := Iterator
+iter.invoke = function(fname/*, arg, ...*/) {
+    var args = _(arguments).slice(1);
+    //     value, return := Value
+    function invoke(value) {
+        return value[fname].apply(value, args);
+    }
+    return iter.map(invoke);
+};
+
+// Apply brackets to incoming objects. This also works for array indices. `key`
+// is usually a `String` or array index, but anything that stringifies will
+// work.
+//
+//     key := Value
 //     return := Iterator
 iter.get = function(key) {
-    frp.assert(_.isString(key) || _.isNumber(key));
-
     //     value, return := Value
     function get(value) {
         return value[key];
@@ -90,14 +131,6 @@ iter.last = _.once(function() {
     return iter.map(_.last);
 });
 
-// Map incoming values by applying `value` as an arraylike.
-//
-//     func := function(Value, ...) Value
-//     return := Iterator
-iter.mapApply = function(func) {
-    return iter.map(applyValue(func));
-};
-
 // Perform some operation on each value then emit. This is a good way to contain
 // side effects, like logging.
 //
@@ -115,11 +148,8 @@ iter.tap = function(func) {
 
 // Tap an event stream, applying each value as an arraylike.
 //
-//     func := function(Value, ...)
 //     return := Iterator
-iter.tapApply = function(func) {
-    return iter.tap(applyValue(func));
-};
+iter.tapApply = applier(iter.tap);
 
 // Filter incoming values with `func`.
 //
@@ -138,11 +168,8 @@ iter.filter = function(func) {
 
 // Filter, but apply `func` with arraylike values.
 //
-//     func := function(Value, ...) Boolean
 //     return := Iterator
-iter.filterApply = function(func) {
-    return iter.filter(applyValue(func));
-};
+iter.filterApply = applier(iter.filter);
 
 // Fold over the incoming stream. Call `func` where `current` begins with value
 // `initial` and the return value sets `current` for the next call.
@@ -206,7 +233,8 @@ iter.lastN = function(n) {
     //     value, return := Value
     function lastN(values, value) {
         var next = [value];
-        next.push.apply(next, values.slice(0, n - 1));
+        var last = (values.length < n) ? values : values.slice(0, n - 1);
+        next.push.apply(next, last);
         return next;
     }
     return iter.fold([], lastN);
@@ -245,6 +273,22 @@ iter.unique = function(isEqual/*?*/) {
             iter.identity(),
             iter.filterApply(not(isEqual))),
         iter.first());
+};
+
+// Defer emitting events until the next stack frame. Order is preserved, but the
+// stack before this point will not be available.
+//
+//     return := Iterator
+iter.defer = function() {
+    var queue = [];
+    function shift() {
+        queue.shift()();
+    }
+    function defer(value, send) {
+        queue.push(_.bind(send, this, value));
+        _.defer(shift);
+    }
+    return defer;
 };
 
 // Send the last value after receiving no values for `wait` ms.
@@ -299,6 +343,7 @@ iter.unpromise = _.once(function() {
 iter.orderPromises = _.once(function() {
     //     next, previous, return := jQuery.Deferred
     function orderPromises(next, previous) {
+        //     return := jQuery.Deferred
         function emitNext() {
             return next;
         }
@@ -365,9 +410,7 @@ iter.unpromiseMostRecent = _.once(function() {
 //
 //     iterator, return := Iterator
 iter.chain = function(/*iterator, ...*/) {
-    if (arguments.length === 0) {
-        return iter.identity();
-    }
+    frp.assert(arguments.length > 0);
 
     if (arguments.length === 1) {
         return arguments[0];
@@ -375,8 +418,12 @@ iter.chain = function(/*iterator, ...*/) {
 
     var first = _.last(arguments);
     var rest = _(arguments).slice(0, -1);
+    //     next, current := Iterator
     return _.reduceRight(rest, function(next, current) {
+        //     value := Value
+        //     send := Send
         function chain(value, send) {
+            //     nextValue := Value
             function sendNext(nextValue) {
                 next.call(this, nextValue, send);
             }
@@ -394,6 +441,7 @@ iter.chain = function(/*iterator, ...*/) {
 //     return := Iterator
 iter.build = function(/*(name, args), ...*/) {
     var len = arguments.length;
+    frp.assert(len > 0);
     frp.assert((len % 2) === 0, 'build requires an even number of arguments');
 
     var chainArgs = [];
