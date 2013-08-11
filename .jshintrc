@@ -20,7 +20,6 @@
  "noempty": false,
  "nonew": true,
  "plusplus": false,
-
  "quotmark": "single",
  "regexp": false,
  "strict": false,

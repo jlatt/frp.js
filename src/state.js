@@ -1,6 +1,6 @@
-/* globals frp */
+/* global frp, assert, getDefault, heir, VectorClock */
 
-// ### utility functions
+// ## utility functions
 
 function isKeys(keys) {
     return (_.isArray(keys) &&
@@ -15,7 +15,7 @@ function isInstance(object, Class) {
 function indexMap(array) {
     var map = {};
     _.each(array, function(str, index) {
-        frp.assert(_.isString, str);
+        assert(_.isString, str);
         map[str] = index;
     }, this);
     return map;
@@ -28,11 +28,10 @@ function indexMap(array) {
 //     clock := VectorClock
 //     return := ClockedValue
 function ClockedValue(key, value, clock) {
-    frp.assert(_.isString, key);
-    frp.assert(_.isObject, clock);
-    frp.assert(_.isFunction, clock.isUnified);
-    frp.assert.call(clock, clock.isUnified);
-
+    assert(_.isString, key);
+    assert(_.isObject, clock);
+    assert(_.isFunction, clock.isUnified);
+    assert.call(clock, clock.isUnified);
     this.key = key;
     this.value = value;
     this.clock = clock;
@@ -44,8 +43,7 @@ function ClockedValue(key, value, clock) {
 //     keys := [String, ...]
 //     return := Sources
 function Sources(keys) {
-    frp.assert(isKeys, keys);
-
+    assert(isKeys, keys);
     this.keys = keys;
     // Map indexes to keys for constructing args.
     this.keyToIndex = indexMap(keys);
@@ -57,7 +55,7 @@ function Sources(keys) {
 
 Sources.prototype.args = function() {
     return _.map(this.keys, function(key) {
-        frp.assert.call(this.values, this.values.hasOwnProperty, key);
+        assert.call(this.values, this.values.hasOwnProperty, key);
         return this.values[key].value;
     }, this);
 };
@@ -67,8 +65,7 @@ Sources.prototype.args = function() {
 //     value := ClockedValue
 //     return := this
 Sources.prototype.set = function(value) {
-    frp.assert(isInstance, value, ClockedValue);
-
+    assert(isInstance, value, ClockedValue);
     this.last[value.key] = this.values[value.key];
     this.values[value.key] = value;
     return this;
@@ -80,15 +77,17 @@ Sources.prototype.set = function(value) {
 //     key := String
 //     return := Boolean
 Sources.prototype.valueChanged = function(key) {
-    frp.assert(_.isString, key);
+    assert(_.isString, key);
 
     if (!this.values.hasOwnProperty(key)) {
         return false;
     }
+
     var current = this.values[key];
     if (!this.last.hasOwnProperty(key)) {
         return true;
     }
+
     var last = this.last[key];
     return !_.isEqual(current.value, last.value);
 };
@@ -97,7 +96,7 @@ Sources.prototype.valueChanged = function(key) {
 //
 //     return := VectorClock
 Sources.prototype.getClock = function() {
-    return frp.VectorClock.merge(_.pluck(this.values, 'clock'));
+    return VectorClock.merge(_.pluck(this.values, 'clock'));
 };
 
 // The sources are ready iff there is at least one change, they are all
@@ -146,127 +145,145 @@ Handle.prototype.cancel = function() {
 
 // ## state machine
 
-// ### private api
-
-// Add a clocked value to the machine.
+// Binding represents an association between a set of keyed values and a block
+// of code that runs when those values have consistent history.
 //
-//     value := ClockedValue
-//     return := this
-function setValue(value) {
-    frp.assert(isInstance, value, ClockedValue);
-
-    this.values[value.key] = value.value;
-    this.clock = frp.VectorClock.merge([this.clock, value.clock]).max();
-    this.getCallbacks(value.key).fireWith(this, [value]);
-    return this;
-}
-
+//     state := StateMachine
+//     keys := [String, ...]
+//     return := Binding
 function Binding(state, keys) {
+    assert(isInstance, state, StateMachine);
+    assert(isKeys, keys);
+
     _.bindAll(this, 'onValue');
     this.state = state;
     this.keys = keys;
     this.sources = new Sources(keys);
 }
-_.extend(Binding.prototype, {
-    'onSources': $.noop,
 
-    'bind': function() {
-        var handle = new Handle();
-        var onValue = this.onValue;
-        _.each(this.keys, function(key) {
-            var callbacks = this.state.getCallbacks(key);
-            this.handle.onCancel.add(function() {
-                callbacks.remove(onValue);
-            });
-            callbacks.add(onValue);
-        }, this);
-        return handle;
-    },
+Binding.prototype.onSources = $.noop;
 
-    'onValue': function(value) {
-        this.sources.set(value);
-        if (this.sources.isReady()) {
-            this.onSources();
-        }
+Binding.prototype.bind = function() {
+    var handle = new Handle();
+    var onValue = this.onValue;
+    _.each(this.keys, function(key) {
+        var callbacks = this.state.getCallbacks(key);
+        this.handle.onCancel.add(function() {
+            callbacks.remove(onValue);
+        });
+        callbacks.add(onValue);
+    }, this);
+    return handle;
+};
+
+Binding.prototype.onValue = function(value) {
+    assert(isInstance, value, ClockedValue);
+
+    this.sources.set(value);
+    if (this.sources.isReady()) {
+        this.onSources();
     }
-});
+};
 
+// `StateChange` is a `Binding` that calls `onKeys` with the sources as
+// positional arguments.
+//
+//     state := StateMachine
+//     keys := [String, ...]
+//     onKeys := StateMachine function(Value, ...)
 function StateChange(state, keys, onKeys) {
     Binding.call(this, state, keys);
     this.onKeys = onKeys;
 }
-StateChange.prototype = frp.heir(Binding.prototype);
+
+StateChange.prototype = heir(Binding.prototype);
 
 StateChange.prototype.onSources = function() {
     var args = this.sources.args();
     this.onKeys.apply(this.state, args);
 };
 
+// `Calculation` is a `Binding` that creates a clocked value `target` from
+// `sources`.
+//
+//     state := StateMachine
+//     keys := [String, ...]
+//     target := String
+//     calculate := StateMachine function(Value, ...) Value
 function Calculation(state, keys, target, calculate) {
     Binding.call(this, state, keys);
+    assert(target, _.isString);
+    assert(calculate, _.isFunction);
     this.target = target;
     this.calculate = calculate;
 }
-Calculation.prototype = frp.heir(Binding.prototype);
-_.extend(Calculation.prototype, {
-    'setTarget': function(value) {
-        var clock = this.sources.getClock().increment(this.target);
-        var clocked = new ClockedValue(this.target, value, clock);
-        setValue.call(this.state, clocked);
-        return this;
-    },
 
-    'onSources': function() {
-        var args = this.sources.args();
-        args.push(this.state.get(this.target));
-        var result = this.calculate.apply(this.state, args);
-        this.handleValue(result);
-    },
+Calculation.prototype = heir(Binding.prototype);
 
-    'handleValue': function(result) {
-        this.setTarget(result);
-    }
-});
+Calculation.prototype.setTarget = function(value) {
+    var clock = this.sources.getClock().increment(this.target);
+    var clocked = new ClockedValue(this.target, value, clock);
+    this.state.setValue(clocked);
+    return this;
+};
 
-function DeferredCalculation() {
+// Run when sources change.
+Calculation.prototype.onSources = function() {
+    var args = this.sources.args();
+    args.push(this.state.get(this.target));
+    var result = this.calculate.apply(this.state, args);
+    this.handleValue(result);
+};
+
+// Receive a value from a promise container.
+//
+//     result := Value
+Calculation.prototype.handleValue = function(result) {
+    this.setTarget(result);
+};
+
+// Calculate a promise, extracting the value when available.
+function PromiseCalculation() {
     Calculation.apply(this, arguments);
 }
-DeferredCalculation.prototype = frp.heir(Calculation.prototype);
-_.extend(DeferredCalculation.prototype, {
-    'previous': null,
 
-    'current': $.Deferred().resolve(),
+PromiseCalculation.prototype = heir(Calculation.prototype);
 
-    'onSources': function() {
-        this.previous = this.current;
-        this.current = null;
-        Calculation.prototype.onSources.call(this);
-    },
+PromiseCalculation.prototype.previous = null;
 
-    'handleValue': function(result) {
-        this.current = result;
-        this.handleDeferred();
-    },
+PromiseCalculation.prototype.current = $.Deferred().resolve().promise();
 
-    'handleDeferred': $.noop,
+PromiseCalculation.prototype.onSources = function() {
+    this.previous = this.current;
+    this.current = null;
+    Calculation.prototype.onSources.call(this);
+};
 
-    'finish': function() {
-        var calc = this;
-        var current = this.current;
-        return function(result) {
-            if (current === calc.current) {
-                calc.setTarget(result);
-            }
-        };
-    }
-});
+PromiseCalculation.prototype.handleValue = function(result) {
+    this.current = result;
+    this.handlePromise();
+};
 
-function ChainedDeferredCalculation() {
-    DeferredCalculation.apply(this, arguments);
+PromiseCalculation.prototype.handlePromise = $.noop;
+
+//     return := function(Value)
+PromiseCalculation.prototype.finish = function() {
+    var calc = this;
+    var current = this.current;
+    return function(result) {
+        if (current === calc.current) {
+            calc.setTarget(result);
+        }
+    };
+};
+
+function ChainedPromiseCalculation() {
+    PromiseCalculation.apply(this, arguments);
 }
-ChainedDeferredCalculation.prototype = frp.heir(DeferredCalculation.prototype);
 
-ChainedDeferredCalculation.prototype.handleDeferred = function() {
+ChainedPromiseCalculation.prototype = heir(PromiseCalculation.prototype);
+
+ChainedPromiseCalculation.prototype.handlePromise = function() {
     var current = this.current;
     var finish = this.finish();
     this.previous.always(function() {
@@ -274,13 +291,13 @@ ChainedDeferredCalculation.prototype.handleDeferred = function() {
     });
 };
 
-function InterruptDeferredCalculation() {
-    DeferredCalculation.apply(this, arguments);
+function InterruptPromiseCalculation() {
+    PromiseCalculation.apply(this, arguments);
 }
-InterruptDeferredCalculation.prototype =
-    frp.heir(DeferredCalculation.prototype);
 
-InterruptDeferredCalculation.prototype.handleDeferred = function() {
+InterruptPromiseCalculation.prototype = heir(PromiseCalculation.prototype);
+
+InterruptPromiseCalculation.prototype.handlePromise = function() {
     if (!_.isNull(this.previous) && _.isFunction(this.previous.abort)) {
         this.previous.abort();
     }
@@ -294,106 +311,126 @@ function StateMachine() {
     // A map of keys to $.Callbacks
     this.callbacks = {};
     // The global clock, representing all keys present in the system
-    this.clock = frp.VectorClock.create();
+    this.clock = VectorClock.create();
     // A map of key to value
     this.values = {};
 }
-_.extend(StateMachine.prototype, {
-    // ### public api
 
-    // Get the current value of a key. This function is for debugging. It should
-    // not be used to retrieve the current value for a key within callbacks.
-    //
-    //     key := String
-    //     return := Value
-    'get': function(key) {
-        return this.values[key];
-    },
+// Get the current value of a key. This function does not make any guarantees on
+// the system state and is only useful outside `Binding`s for debugging
+// purposes.
+//
+//     key := String
+//     return := Value
+StateMachine.prototype.get = function(key) {
+    return this.values[key];
+};
 
-    // Set a key/value pair without any sources. The value's clock will follow
-    // the global clock's value for that key.
-    //
-    //     key := String
-    //     value := Value
-    //     return := this
-    'set': function(key, value) {
-        frp.assert(_.isString, key);
+// Set a key/value pair without any sources. The value's clock will follow the
+// global clock's value for that key.
+//
+//     key := String
+//     value := Value
+//     return := this
+StateMachine.prototype.set = function(key, value) {
+    assert(_.isString, key);
+    var vclock = this.clock.next(key);
+    var clocked = new ClockedValue(key, value, vclock);
+    this.setValue(clocked);
+    return this;
+};
 
-        var vclock = this.clock.next(key);
-        var clocked = new ClockedValue(key, value, vclock);
-        setValue.call(this, clocked);
-        return this;
-    },
+// Set key/value pairs from an object. Order is not guaranteed.
+//
+//     values := Object
+//     return := this
+StateMachine.prototype.setMany = function(values) {
+    assert(_.isObject, values);
+    _.each(values, function(value, key) {
+        this.set(key, value);
+    }, this);
+    return this;
+};
 
-    // Set key/value pairs from an object. Order is not guaranteed.
-    //
-    //     values := Object
-    //     return := this
-    'setMany': function(values) {
-        frp.assert(_.isObject, values);
+// Get the callbacks list for a key.
+//
+//     return := $.Callbacks
+StateMachine.prototype.getCallbacks = function(key) {
+    assert(_.isString, key);
 
-        _.each(values, function(value, key) {
-            this.set(key, value);
-        }, this);
-        return this;
-    },
+    return getDefault.call(this, this.callbacks, key, function() {
+        return $.Callbacks('memory unique');
+    });
+};
 
-    // Get the callbacks list for a key.
-    //
-    //     return := $.Callbacks
-    'getCallbacks': function(key) {
-        frp.assert(_.isString, key);
+// Run a function when all the named values are available and their clocks are
+// unified. `calculate` receives positional arguments for each of the `keys` in
+// the order specified.
+//
+//     keys := [String, ...]
+//     onKeys := StateMachine function(Value, ...)
+//     return := Handle
+StateMachine.prototype.on = function(keys, onKeys) {
+    assert(isKeys, keys);
+    assert(_.isFunction, onKeys);
 
-        return frp.getDefault.call(this, this.callbacks, key, function() {
-            return $.Callbacks('memory unique');
-        });
-    },
+    var binding = new StateChange(this, keys, onKeys);
+    return binding.bind();
+};
 
-    // Run a function when all the named values are available and their clocks
-    // are unified. `calculate` receives positional arguments for each of the
-    // `keys` in the order specified.
-    //
-    //     keys := [String, ...]
-    //     onKeys := StateMachine function(Value, ...)
-    //     return := Handle
-    'on': function(keys, onKeys) {
-        frp.assert(isKeys, keys);
-        frp.assert(_.isFunction, onKeys);
+// Create a value by combining other values. `calculate` receives positional
+// arguments for each of the `keys` in the order specified, then the previous
+// value of `target`.
+//
+//     keys := [String, ...]
+//     target := String
+//     calculate := StateMachine function(Value, ...) Value
+//     return := Handle
+StateMachine.prototype.calculate = function(keys, target, calculate) {
+    var calculation = new Calculation(this, keys, target, calculate);
+    return calculation.bind();
+};
 
-        var binding = new StateChange(this, keys, onKeys);
-        return binding.bind();
-    },
+// Calculations can return a promise to represent a future result. There are two
+// styles: interrupt, and chain. Interrupt attempts to call `.abort()` on the
+// promise calculated before the current operation, if any. Chain waits until
+// the previous promise completes before discarding its value in favor of the
+// current operation's promise.
+//
+//     keys := [String, ...]
+//     target := String
+//     calculate := StateMachine function(Value, ...) Value
+//     style := 'interrupt' || 'chain'
+//     return := Handle
+StateMachine.prototype.calculatePromise = function(
+    keys, target, calculate, style) {
+    assert(style, _.isString);
 
-    // Create a value by combining other values. If `calculate` returns a
-    // `Deferred`, pass option `'interrupt'` to attempt to abort the current
-    // operation in progress when starting a new one. Pass options `'chain'` to
-    // wait until the previous `Deferred` completes, discarding its value,
-    // before running the new operation. `calculate` receives positional
-    // arguments for each of the `keys` in the order specified, then the
-    // previous value of `target`.
-    //
-    //     keys := [String, ...]
-    //     target := String
-    //     calculate := StateMachine function(Value, ...) Value
-    //     options := {'deferred': 'interrupt' || 'chain'}
-    //     return := Handle
-    'calculate': function(keys, target, calculate, options/*?*/) {
-        frp.assert(isKeys, keys);
-        frp.assert(_.isString, target);
-        frp.assert(_.isFunction, calculate);
-
-        var Calc = Calculation;
-        if (_.isObject(options)) {
-            if (options.deferred === 'interrupt') {
-                Calc = InterruptDeferredCalculation;
-            } else if (options.deferred === 'chain') {
-                Calc = ChainedDeferredCalculation;
-            }
-        }
-        var calculation = new Calc(this, keys, target, calculate);
-        return calculation.bind();
+    var Calc;
+    if (style === 'interrupt') {
+        Calc = InterruptPromiseCalculation;
+    } else if (style === 'chain') {
+        Calc = ChainedPromiseCalculation;
+    } else {
+        throw new Error('calculate: bad options');
     }
-});
+    var calculation = new Calculation(this, keys, target, calculate);
+    return calculation.bind();
+};
+
+// ### private api
+
+// Add a clocked value to the machine.
+//
+//     value := ClockedValue
+//     return := this
+StateMachine.prototype.setValue = function(value) {
+    assert(isInstance, value, ClockedValue);
+    this.values[value.key] = value.value;
+    this.clock = VectorClock.merge([this.clock, value.clock]).max();
+    this.getCallbacks(value.key).fireWith(this, [value]);
+    return this;
+};
 
 // Export.
 frp.StateMachine = StateMachine;

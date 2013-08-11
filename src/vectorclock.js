@@ -5,7 +5,7 @@
 // threads of execution.
 //     Key := String
 //     Count := Number, int >= 0
-/* globals frp */
+/* global frp, assert, getDefault */
 
 // Create a new vector clock. These vector clocks can represent clocks for
 // individual and sets of values. We use the term *unified* to indicate a clock
@@ -64,7 +64,7 @@ VectorClock.merge = function(clocks) {
 //     key := Key
 //     return := [Count, ...]
 VectorClock.prototype.get = function(key) {
-    return frp.getDefault.call(this, this.keys, function() {
+    return getDefault.call(this, this.keys, function() {
         return [0];
     });
 };
@@ -76,7 +76,9 @@ VectorClock.prototype.isUnified = function() {
     return _.chain(this.keys)
         .values()
         .pluck('length')
-        .all(function(length) { return length === 1; })
+        .all(function(length) {
+            return length === 1;
+        }, this)
         .value();
 };
 
@@ -97,7 +99,7 @@ VectorClock.prototype.copy = function() {
 //     return := VectorClock
 VectorClock.prototype.increment = function(key) {
     var vclock = this.copy();
-    frp.assert(function() {
+    assert(function() {
         return vclock.hasOwnProperty(key) && (vclock[key].length === 1);
     });
     ++vclock[key][0];
