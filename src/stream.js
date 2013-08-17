@@ -8,8 +8,7 @@
 //
 //     return := Stream
 function Stream() {
-    _.bindAll(this, 'receive');
-    this.cancel = _.once(this.cancel);
+    _.bindAll(this, 'emit');
     this.onEmit = jQuery.Callbacks('memory unique');
     this.onCancel = jQuery.Callbacks('memory once unique');
 }
@@ -19,36 +18,6 @@ function Stream() {
 //     return := Stream
 Stream.create = function() {
     return new Stream();
-};
-
-// By default, use an identity mapping for incoming events. Set `iter` to any
-// `Iterator` to modify the incoming event stream.
-Stream.prototype.iter = frp.iter.identity();
-
-// Set the iterator for this stream.
-//
-//     iterator := Iterator
-//     return := this
-Stream.prototype.setIter = function(/*iterator, ...*/) {
-    this.iter = frp.iter.chain.apply(this, arguments);
-    return this;
-};
-
-// Build an iterator for this stream.
-//
-//     arguments := see frp.iter.build
-//     return := this
-Stream.prototype.build = function(/*...*/) {
-    this.iter = frp.iter.build.apply(this, arguments);
-    return this;
-};
-
-// Receive an event. This function is not usually called directly, but rather by
-// callbacks from upstream even signals.
-//
-//     value := Value
-Stream.prototype.receive = function(value) {
-    this.iter(value, this.emit);
 };
 
 // Call `onEmit` callbacks with optional `value`. Because of the implementation,
@@ -76,7 +45,7 @@ Stream.prototype.cancel = function() {
 //     stream := Stream
 //     return := this
 Stream.prototype.sendTo = function(stream) {
-    this.onEmit.add(stream.receive);
+    this.onEmit.add(stream.emit);
     return this;
 };
 
@@ -85,7 +54,7 @@ Stream.prototype.sendTo = function(stream) {
 //     stream := Stream
 //     return := this
 Stream.prototype.unSendTo = function(stream) {
-    this.onEmit.remove(stream.receive);
+    this.onEmit.remove(stream.emit);
     return this;
 };
 
@@ -94,7 +63,7 @@ Stream.prototype.unSendTo = function(stream) {
 //     stream := Stream
 //     return := Boolean
 Stream.prototype.sendsTo = function(stream) {
-    return this.onEmit.has(stream.receive);
+    return this.onEmit.has(stream.emit);
 };
 
 // Create a stream that emits events from all argument streams.
@@ -113,7 +82,7 @@ Stream.merge = function(/*stream, ...*/) {
 //     arguments := nested array(s) of Stream
 //     return := Stream
 Stream.prototype.merge = function(/*stream, ...*/) {
-    return Stream.merge(this, _.toArray(arguments));
+    return Stream.merge(this, arguments);
 };
 
 // External Event Sources (aka Signals)
@@ -154,10 +123,11 @@ Stream.gmap = function(source, event) {
 
     var stream = Stream.create();
     var callback = _.bind(stream.emit, stream);
-    var listener = google.maps.addListener(source, event, callback);
+    var listener;
     stream.onCancel.add(function() {
         google.maps.removeListener(listener);
     });
+    listener = google.maps.addListener(source, event, callback);
 
     return stream;
 };
@@ -172,12 +142,13 @@ Stream.sample = function(sample, wait) {
     frp.assert(wait > 0);
 
     var stream = Stream.create();
-    var handle = window.setInterval(function() {
-        stream.emit(sample());
-    }, wait);
+    var handle;
     stream.onCancel.add(function() {
         window.clearInterval(handle);
     });
+    handle = window.setInterval(function() {
+        stream.emit(sample());
+    }, wait);
     return stream;
 };
 

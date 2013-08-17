@@ -6,9 +6,9 @@
 //
 //     func := Function
 //     value := Value
-//     throws := Error
+//     throw := Error
 function assert(func/*, value, ...*/) {
-    var args = Array.prototype.slice.call(arguments, 1);
+    var args = _(arguments).slice(1);
     if (!func.apply(this, args)) {
         throw new Error('assertion failed');
     }
@@ -30,6 +30,7 @@ function getDefault(object, key, makeDefaultValue) {
     if (key in object) {
         return object[key];
     }
+
     var value = makeDefaultValue.apply(this, arguments);
     object[key] = value;
     return value;
@@ -47,7 +48,28 @@ function heir(object) {
     return new Heir();
 }
 
-// Export.
-frp.assert     = assert;
-frp.getDefault = getDefault;
-frp.heir       = heir;
+function inherit(To, From) {
+    assert(_.isFunction, To);
+    assert(_.isFunction, From);
+    To.prototype = heir(From.prototype);
+    To.prototype.constructor = To;
+}
+
+function isKeys(keys) {
+    return (_.isArray(keys) &&
+            (keys.length > 0) &&
+            _.all(keys, _.isString));
+}
+
+function isInstance(object, Constructor) {
+    return object instanceof Constructor;
+}
+
+function indexMap(array) {
+    var map = {};
+    _.each(array, function(str, index) {
+        assert(_.isString, str);
+        map[str] = index;
+    }, this);
+    return map;
+}

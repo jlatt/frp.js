@@ -4,8 +4,7 @@
 // This is a library of standard iterators for building iteration chains within
 // `Stream`s. Each `Iterator` is a function with the same signature. Every
 // `frp.iter` function returns an `Iterator`.
-
-/* globals frp */
+/* global frp, assert */
 var iter = {};
 
 // Send every received value.
@@ -109,7 +108,7 @@ iter.constant = function(value) {
 //     n := Number, > 1
 //     return := Iterator
 iter.lastN = function(n) {
-    frp.assert(n > 1, 'lastN requires n > 1');
+    assert(n > 1, 'lastN requires n > 1');
 
     //     values := [Value, ...]
     //     value, return := Value
@@ -126,7 +125,7 @@ iter.lastN = function(n) {
 //
 //     n := Integer, > 0
 iter.atLeastN = function(n) {
-    frp.assert(n > 0);
+    assert(n > 0);
 
     //     args := Array-like
     //     return := Boolean
@@ -296,15 +295,15 @@ iter.mapPromise = function(done) {
 //     return := Iterator
 iter.build = function(/*name1, args1, name2, args2, ...*/) {
     var len = arguments.length;
-    frp.assert((len % 2) === 0, 'build() requires an even number of arguments');
+    assert((len % 2) === 0, 'build() requires an even number of arguments');
 
     var chainArgs = [];
     for (var i = 0; i < len; i += 2) {
         var name = arguments[i];
         var args = arguments[i + 1];
-        frp.assert(_.isString(name) && _.isFunction(iter[name]),
-                   'name must refer to a function in frp.iter');
-        frp.assert((args === null) ||
+        assert(_.isString(name) && _.isFunction(iter[name]),
+                   'name must refer to a function in iter');
+        assert((args === null) ||
                    _.isArray(args) ||
                    ('length' in args),
                    'args must be arralike');

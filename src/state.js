@@ -1,25 +1,5 @@
-/* global frp, assert, getDefault, heir, VectorClock */
-
-// ## utility functions
-
-function isKeys(keys) {
-    return (_.isArray(keys) &&
-            (keys.length > 0) &&
-            _.all(keys, _.isString));
-}
-
-function isInstance(object, Class) {
-    return object instanceof Class;
-}
-
-function indexMap(array) {
-    var map = {};
-    _.each(array, function(str, index) {
-        assert(_.isString, str);
-        map[str] = index;
-    }, this);
-    return map;
-}
+/* global frp, assert, getDefault, VectorClock, isKeys, isInstance */
+/* global indexMap, inherit */
 
 // Create a named valued associated with a vector clock.
 //
@@ -83,11 +63,11 @@ Sources.prototype.valueChanged = function(key) {
         return false;
     }
 
-    var current = this.values[key];
     if (!this.last.hasOwnProperty(key)) {
         return true;
     }
 
+    var current = this.values[key];
     var last = this.last[key];
     return !_.isEqual(current.value, last.value);
 };
@@ -121,9 +101,11 @@ Sources.prototype.isChanged = function() {
 //
 //     return := Boolean
 Sources.prototype.isPresent = function() {
-    return _.all(this.keys, function(key) {
-        return this.values.hasOwnProperty(key);
-    }, this);
+    return _.all(this.keys, this.hasValue, this);
+};
+
+Sources.prototype.hasValue = function(key) {
+    return this.values.hasOwnProperty(key);
 };
 
 // Create a `Handle` for undoing stateful operations by attaching
@@ -132,7 +114,7 @@ Sources.prototype.isPresent = function() {
 //
 //     return := Handle
 function Handle() {
-    this.onCancel = $.Callbacks('memory once unique');
+    this.onCancel = $.Callbacks('memory once');
 }
 
 // Call cancel callbacks. They are only called once.
@@ -144,165 +126,6 @@ Handle.prototype.cancel = function() {
 };
 
 // ## state machine
-
-// Binding represents an association between a set of keyed values and a block
-// of code that runs when those values have consistent history.
-//
-//     state := StateMachine
-//     keys := [String, ...]
-//     return := Binding
-function Binding(state, keys) {
-    assert(isInstance, state, StateMachine);
-    assert(isKeys, keys);
-
-    _.bindAll(this, 'onValue');
-    this.state = state;
-    this.keys = keys;
-    this.sources = new Sources(keys);
-}
-
-Binding.prototype.onSources = $.noop;
-
-Binding.prototype.bind = function() {
-    var handle = new Handle();
-    var onValue = this.onValue;
-    _.each(this.keys, function(key) {
-        var callbacks = this.state.getCallbacks(key);
-        this.handle.onCancel.add(function() {
-            callbacks.remove(onValue);
-        });
-        callbacks.add(onValue);
-    }, this);
-    return handle;
-};
-
-Binding.prototype.onValue = function(value) {
-    assert(isInstance, value, ClockedValue);
-
-    this.sources.set(value);
-    if (this.sources.isReady()) {
-        this.onSources();
-    }
-};
-
-// `StateChange` is a `Binding` that calls `onKeys` with the sources as
-// positional arguments.
-//
-//     state := StateMachine
-//     keys := [String, ...]
-//     onKeys := StateMachine function(Value, ...)
-function StateChange(state, keys, onKeys) {
-    Binding.call(this, state, keys);
-    this.onKeys = onKeys;
-}
-
-StateChange.prototype = heir(Binding.prototype);
-
-StateChange.prototype.onSources = function() {
-    var args = this.sources.args();
-    this.onKeys.apply(this.state, args);
-};
-
-// `Calculation` is a `Binding` that creates a clocked value `target` from
-// `sources`.
-//
-//     state := StateMachine
-//     keys := [String, ...]
-//     target := String
-//     calculate := StateMachine function(Value, ...) Value
-function Calculation(state, keys, target, calculate) {
-    Binding.call(this, state, keys);
-    assert(target, _.isString);
-    assert(calculate, _.isFunction);
-    this.target = target;
-    this.calculate = calculate;
-}
-
-Calculation.prototype = heir(Binding.prototype);
-
-Calculation.prototype.setTarget = function(value) {
-    var clock = this.sources.getClock().increment(this.target);
-    var clocked = new ClockedValue(this.target, value, clock);
-    this.state.setValue(clocked);
-    return this;
-};
-
-// Run when sources change.
-Calculation.prototype.onSources = function() {
-    var args = this.sources.args();
-    args.push(this.state.get(this.target));
-    var result = this.calculate.apply(this.state, args);
-    this.handleValue(result);
-};
-
-// Receive a value from a promise container.
-//
-//     result := Value
-Calculation.prototype.handleValue = function(result) {
-    this.setTarget(result);
-};
-
-// Calculate a promise, extracting the value when available.
-function PromiseCalculation() {
-    Calculation.apply(this, arguments);
-}
-
-PromiseCalculation.prototype = heir(Calculation.prototype);
-
-PromiseCalculation.prototype.previous = null;
-
-PromiseCalculation.prototype.current = $.Deferred().resolve().promise();
-
-PromiseCalculation.prototype.onSources = function() {
-    this.previous = this.current;
-    this.current = null;
-    Calculation.prototype.onSources.call(this);
-};
-
-PromiseCalculation.prototype.handleValue = function(result) {
-    this.current = result;
-    this.handlePromise();
-};
-
-PromiseCalculation.prototype.handlePromise = $.noop;
-
-//     return := function(Value)
-PromiseCalculation.prototype.finish = function() {
-    var calc = this;
-    var current = this.current;
-    return function(result) {
-        if (current === calc.current) {
-            calc.setTarget(result);
-        }
-    };
-};
-
-function ChainedPromiseCalculation() {
-    PromiseCalculation.apply(this, arguments);
-}
-
-ChainedPromiseCalculation.prototype = heir(PromiseCalculation.prototype);
-
-ChainedPromiseCalculation.prototype.handlePromise = function() {
-    var current = this.current;
-    var finish = this.finish();
-    this.previous.always(function() {
-        current.done(finish);
-    });
-};
-
-function InterruptPromiseCalculation() {
-    PromiseCalculation.apply(this, arguments);
-}
-
-InterruptPromiseCalculation.prototype = heir(PromiseCalculation.prototype);
-
-InterruptPromiseCalculation.prototype.handlePromise = function() {
-    if (!_.isNull(this.previous) && _.isFunction(this.previous.abort)) {
-        this.previous.abort();
-    }
-    this.current.done(this.finish());
-};
 
 // Create a state machine.
 //
@@ -359,7 +182,140 @@ StateMachine.prototype.getCallbacks = function(key) {
     assert(_.isString, key);
 
     return getDefault.call(this, this.callbacks, key, function() {
-        return $.Callbacks('memory unique');
+        return $.Callbacks('memory');
+    });
+};
+
+// Binding represents an association between a set of keyed values and a block
+// of code that runs when those values have consistent history.
+//
+//     state := StateMachine
+//     keys := [String, ...]
+//     run := StateMachine function(Value, ...)
+//     return := Binding
+function Binding(state, keys, run) {
+    assert(isInstance, state, StateMachine);
+    this.sources = new Sources(keys);
+    assert(_.isFunction, run);
+    this.bind = _.once(this.bind);
+    this.state = state;
+    this.run = run;
+}
+
+Binding.prototype.bind = function() {
+    var handle = new Handle();
+    var onValue = _.bind(this.onValue, this);
+    _.each(this.keys, function(key) {
+        var callbacks = this.state.getCallbacks(key);
+        handle.onCancel.add(function() {
+            callbacks.remove(onValue);
+        });
+        callbacks.add(onValue);
+    }, this);
+    return handle;
+};
+
+Binding.prototype.onValue = function(value) {
+    assert(isInstance, value, ClockedValue);
+    this.sources.set(value);
+    if (this.sources.isReady()) {
+        this.onSources();
+    }
+};
+
+Binding.prototype.onSources = function() {
+    var args = this.sources.args();
+    this.run.apply(this.state, args);
+};
+
+// `Calculation` is a `Binding` that creates a clocked value `target` from
+// `sources`.
+//
+//     state := StateMachine
+//     keys := [String, ...]
+//     target := String
+//     calculate := StateMachine function(Value, ...) Value
+function Calculation(state, keys, target, calculate) {
+    Binding.call(this, state, keys, calculate);
+    assert(target, _.isString);
+    this.target = target;
+}
+
+inherit(Calculation, Binding);
+
+Calculation.prototype.setTarget = function(value) {
+    var clock = this.sources.getClock().increment(this.target);
+    var clocked = new ClockedValue(this.target, value, clock);
+    this.state.setValue(clocked);
+    return this;
+};
+
+// Run when sources change.
+Calculation.prototype.onSources = function() {
+    var args = this.sources.args();
+    args.push(this.state.get(this.target));
+    var result = this.run.apply(this.state, args);
+    this.handleValue(result);
+};
+
+// Receive a value from a promise container.
+//
+//     result := Value
+Calculation.prototype.handleValue = function(result) {
+    this.setTarget(result);
+};
+
+// Calculate a promise, extracting the value when available.
+function PromiseCalculation() {
+    Calculation.apply(this, arguments);
+}
+
+inherit(PromiseCalculation, Calculation);
+
+PromiseCalculation.prototype.previous = null;
+
+PromiseCalculation.prototype.current = $.Deferred().resolve().promise();
+
+PromiseCalculation.prototype.onSources = function() {
+    this.previous = this.current;
+    this.current = null;
+    Calculation.prototype.onSources.call(this);
+};
+
+PromiseCalculation.prototype.handleValue = function(result) {
+    this.current = result;
+    this.handlePromise();
+};
+
+PromiseCalculation.prototype.handlePromise = function() {
+    if (!_.isNull(this.previous) && _.isFunction(this.previous.abort)) {
+        this.previous.abort();
+    }
+    this.current.done(this.finish());
+};
+
+//     return := function(Value)
+PromiseCalculation.prototype.finish = function() {
+    var calc = this;
+    var current = this.current;
+    return function(result) {
+        if (current === calc.current) {
+            calc.setTarget(result);
+        }
+    };
+};
+
+function ChainedPromiseCalculation() {
+    PromiseCalculation.apply(this, arguments);
+}
+
+inherit(ChainedPromiseCalculation, PromiseCalculation);
+
+ChainedPromiseCalculation.prototype.handlePromise = function() {
+    var current = this.current;
+    var finish = this.finish();
+    this.previous.always(function() {
+        current.done(finish);
     });
 };
 
@@ -368,13 +324,13 @@ StateMachine.prototype.getCallbacks = function(key) {
 // the order specified.
 //
 //     keys := [String, ...]
-//     onKeys := StateMachine function(Value, ...)
+//     run := StateMachine function(Value, ...)
 //     return := Handle
-StateMachine.prototype.on = function(keys, onKeys) {
+StateMachine.prototype.on = function(keys, run) {
     assert(isKeys, keys);
-    assert(_.isFunction, onKeys);
+    assert(_.isFunction, run);
 
-    var binding = new StateChange(this, keys, onKeys);
+    var binding = new Binding(this, keys, run);
     return binding.bind();
 };
 
@@ -402,19 +358,19 @@ StateMachine.prototype.calculate = function(keys, target, calculate) {
 //     calculate := StateMachine function(Value, ...) Value
 //     style := 'interrupt' || 'chain'
 //     return := Handle
+//     throw := Error
 StateMachine.prototype.calculatePromise = function(
     keys, target, calculate, style) {
     assert(style, _.isString);
-
-    var Calc;
+    var PromiseCalc;
     if (style === 'interrupt') {
-        Calc = InterruptPromiseCalculation;
+        PromiseCalc = PromiseCalculation;
     } else if (style === 'chain') {
-        Calc = ChainedPromiseCalculation;
+        PromiseCalc = ChainedPromiseCalculation;
     } else {
         throw new Error('calculate: bad options');
     }
-    var calculation = new Calculation(this, keys, target, calculate);
+    var calculation = new PromiseCalc(this, keys, target, calculate);
     return calculation.bind();
 };
 
