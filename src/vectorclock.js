@@ -5,14 +5,14 @@
 // threads of execution.
 //     Key := String
 //     Count := Number, int >= 0
-/* global assert, getDefault */
+/* global assert, getDefault, isInstance */
 
 // Create a new vector clock.
 //
 //     keys := [Key, ...]
 //     return := VectorClock
-function VectorClock(keys) {
-    this.keys = keys;
+function VectorClock(keys/*?*/) {
+    this.keys = _.isObject(keys) ? keys : {};
 }
 
 // ### instance methods
@@ -27,16 +27,6 @@ VectorClock.prototype.get = function(key) {
 
 // ### constructors
 
-// Return a copy with `name` incremented by 1.
-//
-//     key := Key
-//     return := VectorClock
-VectorClock.prototype.increment = function(key) {
-    var incremented = _.clone(this.keys);
-    incremented[key] += 1;
-    return new VectorClock(incremented);
-};
-
 // Return a vector clock that follows only a specific key from the current
 // clock.
 //
@@ -48,7 +38,7 @@ VectorClock.prototype.next = function(key) {
     return new VectorClock(next);
 };
 
-VectorClock.prototype.copyFrom = function(clock) {
+VectorClock.prototype.merge = function(clock) {
     var copy = new VectorClock(_.clone(this.keys));
     _.each(clock.keys, function(key) {
         this.keys[key] = Math.max(this.get(key), clock.get(key));
@@ -58,12 +48,18 @@ VectorClock.prototype.copyFrom = function(clock) {
 
 // ### class methods
 
-// Merge several vector clocks together. If clocks diverge on any keys, return
-// `null`.
+// Attempt to merge several vector clocks together. If clocks diverge on any
+// keys, return `null`.
 //
 //     clock := VectorClock
 //     return := VectorClock || null
-VectorClock.merge = function(/*clock, ...*/) {
+VectorClock.mergeIfConsistent = function(/*clock, ...*/) {
+    if (arguments.length === 0) {
+        return null;
+    }
+    if (arguments.length === 1) {
+        return arguments[1];
+    }
     var merged = {};
     var isUnified = _.all(arguments, function(clock) {
         return _.all(clock.keys, function(value, key) {
@@ -76,3 +72,19 @@ VectorClock.merge = function(/*clock, ...*/) {
     }, this);
     return isUnified ? new VectorClock(merged) : null;
 };
+
+// Create a named valued associated with a vector clock.
+//
+//     key := String
+//     value := Value
+//     clock := VectorClock
+//     return := VersionedValue
+function VersionedValue(key, value, clock) {
+    assert(_.isString, key);
+    assert(isInstance, clock, VectorClock);
+    this.key = key;
+    this.value = value;
+    this.clock = clock;
+}
+
+VersionedValue.prototype.changed = false;
