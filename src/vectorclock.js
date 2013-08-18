@@ -5,117 +5,36 @@
 // threads of execution.
 //     Key := String
 //     Count := Number, int >= 0
-/* global frp, assert, getDefault */
+/* global assert, getDefault */
 
-// Create a new vector clock. These vector clocks can represent clocks for
-// individual and sets of values. We use the term *unified* to indicate a clock
-// which does not have multiple values for a key. The collection of values
-// represented by a unified clock have consistent histories. In the state
-// machine, this usually means that it is safe to execute code requiring those
-// multiple values.
+// Create a new vector clock.
 //
 //     keys := [Key, ...]
 //     return := VectorClock
-function VectorClock(keys/*?*/) {
-    this.keys = _.isObject(keys) ? keys : {};
+function VectorClock(keys) {
+    this.keys = keys;
 }
-
-// ### class methods
-
-// Wrap the constructor for ease.
-//
-//     keys := [Key, ...]
-//     return := VectorClock
-VectorClock.create = function(keys/*?*/) {
-    return new VectorClock(keys);
-};
-
-// Merge several vector clocks together. Clock values are listed uniquely in
-// order.
-//
-//     clocks := [VectorClock, ...]
-//     return := VectorClock
-VectorClock.merge = function(clocks) {
-    var _keys = _.chain(clocks)
-        .pluck('keys');
-    var clock = new VectorClock();
-    _.chain(clocks)
-        .pluck('keys')
-        .map(_.keys)
-        .flatten(/*shallow=*/true)
-        .sort()
-        .uniq(/*sorted=*/true)
-        .each(function(key) {
-            clock.keys[key] = _keys
-                .pluck(key)
-                .compact()
-                .flatten(/*shallow=*/true)
-                .sort()
-                .uniq(/*sorted=*/true)
-                .value();
-        }, this);
-    return clock;
-};
 
 // ### instance methods
 
-// Get the keyed value, returning a default if necessary.]
+// Get the keyed value, returning a default if necessary.
 //
 //     key := Key
-//     return := [Count, ...]
+//     return := Count
 VectorClock.prototype.get = function(key) {
-    return getDefault.call(this, this.keys, function() {
-        return [0];
-    });
-};
-
-// Return `true` iff the clock is unified.
-//
-//     return := Boolean
-VectorClock.prototype.isUnified = function() {
-    return _.chain(this.keys)
-        .values()
-        .pluck('length')
-        .all(function(length) {
-            return length === 1;
-        }, this)
-        .value();
+    return getDefault(this.keys, Number);
 };
 
 // ### constructors
-
-// Copy a vector clock's keys to a new instance.
-//
-//     return := VectorClock
-VectorClock.prototype.copy = function() {
-    var vclock = new VectorClock();
-    _.extend(vclock.keys, this.keys);
-    return vclock;
-};
 
 // Return a copy with `name` incremented by 1.
 //
 //     key := Key
 //     return := VectorClock
 VectorClock.prototype.increment = function(key) {
-    var vclock = this.copy();
-    assert(function() {
-        return vclock.hasOwnProperty(key) && (vclock[key].length === 1);
-    });
-    ++vclock[key][0];
-    return vclock;
-};
-
-// Return a vector clock with only the maximum values appearing in each key
-// set. The returned clock is always unified.
-//
-//     return := VectorClock
-VectorClock.prototype.max = function() {
-    var vclock = this.copy();
-    _.each(vclock.keys, function(counts, key) {
-        vclock.keys[key] = [_.max(counts)];
-    }, this);
-    return vclock;
+    var incremented = _.clone(this.keys);
+    incremented[key] += 1;
+    return new VectorClock(incremented);
 };
 
 // Return a vector clock that follows only a specific key from the current
@@ -124,10 +43,36 @@ VectorClock.prototype.max = function() {
 //     key := Key
 //     return := VectorClock
 VectorClock.prototype.next = function(key) {
-    var keys = {};
-    keys[key] = this.get(key) + 1;
-    return new VectorClock(keys);
+    var next = {};
+    next[key] = this.get(key) + 1;
+    return new VectorClock(next);
 };
 
-// Export.
-frp.VectorClock = VectorClock;
+VectorClock.prototype.copyFrom = function(clock) {
+    var copy = new VectorClock(_.clone(this.keys));
+    _.each(clock.keys, function(key) {
+        this.keys[key] = Math.max(this.get(key), clock.get(key));
+    }, this);
+    return copy;
+};
+
+// ### class methods
+
+// Merge several vector clocks together. If clocks diverge on any keys, return
+// `null`.
+//
+//     clock := VectorClock
+//     return := VectorClock || null
+VectorClock.merge = function(/*clock, ...*/) {
+    var merged = {};
+    var isUnified = _.all(arguments, function(clock) {
+        return _.all(clock.keys, function(value, key) {
+            if (merged.hasOwnProperty(key) && (merged[key] !== value)) {
+                return false;
+            }
+            merged[key] = value;
+            return true;
+        }, this);
+    }, this);
+    return isUnified ? new VectorClock(merged) : null;
+};

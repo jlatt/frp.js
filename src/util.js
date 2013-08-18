@@ -64,12 +64,3 @@ function isKeys(keys) {
 function isInstance(object, Constructor) {
     return object instanceof Constructor;
 }
-
-function indexMap(array) {
-    var map = {};
-    _.each(array, function(str, index) {
-        assert(_.isString, str);
-        map[str] = index;
-    }, this);
-    return map;
-}
