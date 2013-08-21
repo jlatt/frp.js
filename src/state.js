@@ -1,6 +1,167 @@
 /* global frp, assert, getDefault, VectorClock, isKeys, isInstance */
 /* global inherit, VersionedValue */
 
+function Sequence(initial) {
+    if (_.isNumber(initial)) {
+        this.current = initial;
+    }
+}
+
+Sequence.prototype.current = 0;
+
+Sequence.prototype.next = function() {
+    var next = this.current;
+    this.current += 1;
+    return next;
+};
+
+function Repeater() {
+    this.key = this.keySequence.next();
+    this.onValue = $.Callbacks('memory');
+    this.onCancel = $.Callbacks('memory once');
+}
+
+Repeater.prototype.clock = new VectorClock();
+
+Repeater.prototype.keySequence = new Sequence();
+
+Repeater.prototype.cancel = function() {
+    this.onCancel.fire(this, [this]);
+    return this;
+};
+
+Repeater.prototype.emit = function(value) {
+    return this.emitMany([value]);
+};
+
+Repeater.prototype.emitMany = function(values) {
+    this.clock = this.clock.next(this.key).merge(this.clock);
+    this.onValue.fireWith(this, [this.key, values, this.clock]);
+    return this;
+};
+
+// ### methods
+
+function SubRepeater() {
+    Repeater.call(this);
+    _.bindAll(this, 'onReceive');
+}
+
+inherits(SubRepeater, Repeater);
+
+SubRepeater.prototype.onReceive = $.noop;
+
+SubRepeater.prototype.addSource = function(source) {
+    this.onCancel.add(function() {
+        source.onValue.remove(this.onReceive);
+    });
+    source.onValue.add(this.onReceive);
+};
+
+function MapRepeater(source, map, context) {
+    SubRepeater.call(this);
+
+    if (_.isFunction(map)) {
+        this.map = map;
+    }
+    this.context = _.isObject(context) ? context : this;
+
+    this.addSource(source);
+}
+
+inherit(MapRepeater, SubRepeater);
+
+MapRepeater.prototype.map = _.identity;
+
+MapRepeater.prototype.onReceive = function(key, values, clock) {
+    this.clock = this.clock.merge(clock);
+    var value = this.map.apply(this.context, values);
+    this.emit(value);
+};
+
+Repeater.prototype.map = function(func, context) {
+    return new MapRepeater(this, func, context);
+};
+
+function FoldRepeater(source, initial, fold, context) {
+    SubRepeater.call(this);
+
+    this.value = initial;
+    if (_.isFunction(fold)) {
+        this.fold = fold;
+    }
+    this.context = _.isObject(context) ? context : this;
+
+    this.addSource(source);
+}
+
+inherit(SubRepeater, FoldRepeater);
+
+FoldRepeater.prototype.fold = _.identity;
+
+FoldRepeater.prototype.onReceive = function(key, values, clock) {
+    var merged = VectorClockArray
+        .create()
+        .append(this.clock, clock)
+        .merge();
+    if (merged === null) {
+        return;
+    }
+    this.clock = merged;
+    this.value = this.fold.apply(this.context, [this.value].concat(values));
+};
+
+Repeater.prototype.fold = function(initial, fold, context) {
+    return new FoldRepeater(this, initial, fold, context);
+};
+
+// TODO
+
+Repeater.prototype.unique = function() {
+    return new UniqueRepeater(this);
+};
+
+// ### class methods
+
+Repeater.create = function() {
+    return new Repeater();
+};
+
+function JoinRepeater(sources) {
+    SubRepeater.call(this);
+
+    this.values = new Array(sources.length);
+    this.clocks = new VectorClockArray(sources.length);
+
+    // `indexOf` is a sparse array mapping keys (integers) to indices
+    // (integers).
+    this.indexOf = [];
+    _.each(sources, function(source, index) {
+        this.indexOf[source.key] = index;
+        this.addSource(source);
+    }, this);
+}
+
+inherit(JoinRepeater, SubRepeater);
+
+JoinRepeater.prototype.onReceive = function(key, values, clock) {
+    var index = this.indexOf[key];
+    this.values[index] = value;
+    this.clocks[index] = clock;
+    var merged = this.clocks.merge();
+    if (merged === null) {
+        // Received arguments have inconsistent clocks. We only emit arrays of
+        // values with consistent clocks.
+        return;
+    }
+    this.clock = this.clock.merge(merged);
+    this.emitMany(this.values);
+};
+
+Repeater.join = function(/*repeater, ...*/) {
+    return new JoinRepeater(arguments);
+};
+
 // Create a state machine.
 //
 //     return := StateMachine

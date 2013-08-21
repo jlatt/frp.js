@@ -73,6 +73,39 @@ VectorClock.mergeIfConsistent = function(/*clock, ...*/) {
     return isUnified ? new VectorClock(merged) : null;
 };
 
+// ### helper classes
+
+function VectorClockArray() {
+    Array.apply(this, arguments);
+};
+
+inherits(VectorClockArray, Array);
+
+VectorClockArray.prototype.append = function() {
+    this.push.apply(this, arguments);
+    return this;
+};
+
+VectorClockArray.prototype.merge = function() {
+    if (!this.isFull()) {
+        return null;
+    }
+    return VectorClock.mergeIfConsistent.apply(VectorClock, this);
+};
+
+VectorClockArray.prototype.isFull = function() {
+    for (var i = 0, len = this.length; i < len; i += 1) {
+        if (this[i] === undefined) {
+            return false;
+        }
+    }
+    return true;
+};
+
+VectorClockArray.create = function() {
+    return new VectorClockArray()
+};
+
 // Create a named valued associated with a vector clock.
 //
 //     key := String
