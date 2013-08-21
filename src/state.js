@@ -250,21 +250,26 @@ PromiseCalculation.prototype.set = function(current) {
 
 // Create a value by combining other values. `calculate` receives positional
 // arguments for each of the `keys` in the order specified, then the previous
-// value of `target`. If option `promise` is passed, `calculate` is expected to
-// return a `Promise` for a future value of the calculation.
+// value of `target`.
 //
 //     keys := [String, ...]
 //     target := String
 //     calculate := StateMachine function(Value, ...) Value
-//     options := {'promise': true}
 //     return := Handle
-StateMachine.prototype.calculate = function(
-    keys, target, calculate, options/*?*/) {
-    var Calc = Calculation;
-    if (_.isObject(options) && ('promise' in options)) {
-        Calc = PromiseCalculation;
-    }
-    var calculation = new Calc(this, keys, target, calculate);
+StateMachine.prototype.calculate = function(keys, target, calculate) {
+    var calculation = new Calculation(this, keys, target, calculate);
+    return calculation.bind();
+};
+
+// See above. `calculate` is expected to return a promise that, if resolved,
+// sets `target`.
+//
+//     keys := [String, ...]
+//     target := String
+//     calculate := StateMachine function(Value, ...) Value
+//     return := Handle
+StateMachine.prototype.calculatePromise = function(keys, target, calculate) {
+    var calculation = new PromiseCalculation(this, keys, target, calculate);
     return calculation.bind();
 };
 

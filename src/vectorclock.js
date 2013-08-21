@@ -39,9 +39,9 @@ VectorClock.prototype.next = function(key) {
 };
 
 VectorClock.prototype.merge = function(clock) {
-    var copy = new VectorClock(_.clone(this.keys));
+    var merged = _.clone(this.keys);
     _.each(clock.keys, function(key) {
-        this.keys[key] = Math.max(this.get(key), clock.get(key));
+        merged[key] = Math.max(this.get(key), clock.get(key));
     }, this);
     return copy;
 };
