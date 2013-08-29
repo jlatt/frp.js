@@ -1,29 +1,15 @@
-/* global frp, assert, getDefault, VectorClock, isKeys, isInstance */
-/* global inherit, VersionedValue */
-
-function Sequence(initial) {
-    if (_.isNumber(initial)) {
-        this.current = initial;
-    }
-}
-
-Sequence.prototype.current = 0;
-
-Sequence.prototype.next = function() {
-    var next = this.current;
-    this.current += 1;
-    return next;
-};
+/* global frp, assert, getDefault, isKeys, isInstance, Sequence, inherit */
+/* global VectorClock, VectorClockArray */
 
 function Repeater() {
-    this.key = this.keySequence.next();
+    this.id = this.idSequence.next();
     this.onValue = $.Callbacks('memory');
     this.onCancel = $.Callbacks('memory once');
 }
 
 Repeater.prototype.clock = new VectorClock();
 
-Repeater.prototype.keySequence = new Sequence();
+Repeater.prototype.idSequence = new Sequence();
 
 Repeater.prototype.cancel = function() {
     this.onCancel.fire(this, [this]);
@@ -35,8 +21,8 @@ Repeater.prototype.emit = function(value) {
 };
 
 Repeater.prototype.emitMany = function(values) {
-    this.clock = this.clock.next(this.key).merge(this.clock);
-    this.onValue.fireWith(this, [this.key, values, this.clock]);
+    this.clock = this.clock.next(this.id).merge(this.clock);
+    this.onValue.fireWith(this, [this.id, values, this.clock]);
     return this;
 };
 
@@ -56,9 +42,12 @@ SubRepeater.prototype.addSource = function(source) {
         source.onValue.remove(this.onReceive);
     });
     source.onValue.add(this.onReceive);
+    return this;
 };
 
-function MapRepeater(source, map, context) {
+// map
+
+function MapRepeater(source, map/*?*/, context/*?*/) {
     SubRepeater.call(this);
 
     if (_.isFunction(map)) {
@@ -67,13 +56,14 @@ function MapRepeater(source, map, context) {
     this.context = _.isObject(context) ? context : this;
 
     this.addSource(source);
+    this.onValue.lock();
 }
 
 inherit(MapRepeater, SubRepeater);
 
 MapRepeater.prototype.map = _.identity;
 
-MapRepeater.prototype.onReceive = function(key, values, clock) {
+MapRepeater.prototype.onReceive = function(id, values, clock) {
     this.clock = this.clock.merge(clock);
     var value = this.map.apply(this.context, values);
     this.emit(value);
@@ -83,39 +73,25 @@ Repeater.prototype.map = function(func, context) {
     return new MapRepeater(this, func, context);
 };
 
-function FoldRepeater(source, initial, fold, context) {
+// TODO unique
+
+function UniqueRepeater(source) {
     SubRepeater.call(this);
-
-    this.value = initial;
-    if (_.isFunction(fold)) {
-        this.fold = fold;
-    }
-    this.context = _.isObject(context) ? context : this;
-
     this.addSource(source);
+    this.onValue.lock();
 }
 
-inherit(SubRepeater, FoldRepeater);
+inherits(UniqueRepeater, SubRepeater);
 
-FoldRepeater.prototype.fold = _.identity;
 
-FoldRepeater.prototype.onReceive = function(key, values, clock) {
-    var merged = VectorClockArray
-        .create()
-        .append(this.clock, clock)
-        .merge();
-    if (merged === null) {
+UniqueRepeater.prototype.onReceive = function(id, values, clock) {
+    if (this.hasOwnProperty('values') && _.isEqual(this.values, values)) {
         return;
     }
-    this.clock = merged;
-    this.value = this.fold.apply(this.context, [this.value].concat(values));
-};
 
-Repeater.prototype.fold = function(initial, fold, context) {
-    return new FoldRepeater(this, initial, fold, context);
+    this.values = values;
+    this.onValue.fireWith(this, arguments);
 };
-
-// TODO
 
 Repeater.prototype.unique = function() {
     return new UniqueRepeater(this);
@@ -127,26 +103,29 @@ Repeater.create = function() {
     return new Repeater();
 };
 
+// join
+
 function JoinRepeater(sources) {
     SubRepeater.call(this);
 
-    this.values = new Array(sources.length);
-    this.clocks = new VectorClockArray(sources.length);
+    this.values = [];
+    this.clocks = new VectorClockArray();
 
-    // `indexOf` is a sparse array mapping keys (integers) to indices
+    // `indexOf` is a sparse array mapping ids (integers) to indices
     // (integers).
     this.indexOf = [];
     _.each(sources, function(source, index) {
-        this.indexOf[source.key] = index;
+        this.indexOf[source.id] = index;
         this.addSource(source);
     }, this);
+    this.onValue.lock();
 }
 
 inherit(JoinRepeater, SubRepeater);
 
-JoinRepeater.prototype.onReceive = function(key, values, clock) {
-    var index = this.indexOf[key];
-    this.values[index] = value;
+JoinRepeater.prototype.onReceive = function(id, values, clock) {
+    var index = this.indexOf[id];
+    this.values[index] = values;
     this.clocks[index] = clock;
     var merged = this.clocks.merge();
     if (merged === null) {
@@ -155,11 +134,49 @@ JoinRepeater.prototype.onReceive = function(key, values, clock) {
         return;
     }
     this.clock = this.clock.merge(merged);
-    this.emitMany(this.values);
+    this.emitMany(_.flatten(this.values, /*shallow=*/true));
 };
 
 Repeater.join = function(/*repeater, ...*/) {
     return new JoinRepeater(arguments);
+};
+
+// ## Proxy
+
+function ProxyRepeater() {
+    SubRepeater.call(this);
+}
+
+inherits(ProxyRepeater, SubRepeater);
+
+ProxyRepeater.prototype.onReceive = function() {
+    this.onValue.fireWith(this, arguments);
+};
+
+ProxyRepeater.prototype.addSource = function() {
+    var retVal = SubRepeater.prototype.addSource.apply(this, arguments);
+    this.onValue.lock();
+    return retVal;
+};
+
+ProxyRepeater.create = function() {
+    return new ProxyRepeater();
+};
+
+function Proxy() {
+    this.repeaters = {};
+}
+
+Proxy.prototype.get = function(name) {
+    return getDefault(this.repeaters, name, ProxyRepeater.create);
+};
+
+Proxy.prototype.getMany = function(/*name, ...*/) {
+    return _
+        .chain(arguments)
+        .flatten(/*shallow=*/true)
+        .map(this.get, this)
+        .value();
 };
 
 // Create a state machine.
@@ -280,22 +297,6 @@ StateView.prototype.args = function() {
     return _.map(this.keys, this.state.get, this.state);
 };
 
-// Create a `Handle` for undoing stateful operations by attaching
-// callbacks. Return a `Handle` from a function whose actions can be undone
-// later.
-//
-//     return := Handle
-function Handle() {
-    this.onCancel = $.Callbacks('memory once');
-}
-
-// Call cancel callbacks. They are only called once.
-//
-//     return := this
-Handle.prototype.cancel = function() {
-    this.onCancel.fireWith(this, [this]);
-    return this;
-};
 
 // Binding represents an association between a set of keyed values and a block
 // of code that runs when those values have consistent history.

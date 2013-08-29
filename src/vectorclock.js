@@ -11,9 +11,7 @@
 //
 //     keys := [Key, ...]
 //     return := VectorClock
-function VectorClock(keys/*?*/) {
-    this.keys = _.isObject(keys) ? keys : {};
-}
+function VectorClock() {}
 
 // ### instance methods
 
@@ -22,7 +20,10 @@ function VectorClock(keys/*?*/) {
 //     key := Key
 //     return := Count
 VectorClock.prototype.get = function(key) {
-    return getDefault(this.keys, Number);
+    if (this.keys.hasOwnProperty(key)) {
+        return this.keys[key];
+    }
+    return 0;
 };
 
 // ### constructors
@@ -33,36 +34,54 @@ VectorClock.prototype.get = function(key) {
 //     key := Key
 //     return := VectorClock
 VectorClock.prototype.next = function(key) {
-    var next = {};
+    var next = new VectorClock();
+    assert(function() { return !(key in next); });
     next[key] = this.get(key) + 1;
-    return new VectorClock(next);
+    return next;
 };
 
 VectorClock.prototype.merge = function(clock) {
-    var merged = _.clone(this.keys);
-    _.each(clock.keys, function(key) {
-        merged[key] = Math.max(this.get(key), clock.get(key));
+    assert(isInstance, clock, VectorClock);
+    var merged = new VectorClock();
+    _.each([this, clock], function(merging) {
+        _.each(merging, function(value, key) {
+            merged[key] = Math.max(merged.get(key), value);
+        }, this);
     }, this);
-    return copy;
+    return merged;
 };
 
 // ### class methods
 
+// ### helper classes
+
+function VectorClockArray() {}
+VectorClockArray.prototype = [];
+VectorClockArray.prototype.constructor = VectorClockArray;
+
+VectorClockArray.prototype.append = function() {
+    this.push.apply(this, arguments);
+    return this;
+};
+
 // Attempt to merge several vector clocks together. If clocks diverge on any
 // keys, return `null`.
 //
-//     clock := VectorClock
 //     return := VectorClock || null
-VectorClock.mergeIfConsistent = function(/*clock, ...*/) {
-    if (arguments.length === 0) {
+VectorClockArray.prototype.merge = function() {
+    if (this.length === 0) {
         return null;
     }
-    if (arguments.length === 1) {
+    if (this.length === 1) {
         return arguments[1];
     }
-    var merged = {};
-    var isUnified = _.all(arguments, function(clock) {
-        return _.all(clock.keys, function(value, key) {
+    if (this.isSparse()) {
+        return null;
+    }
+
+    var merged = new VectorClock();
+    var isUnified = _.all(this, function(clock) {
+        return _.all(clock, function(value, key) {
             if (merged.hasOwnProperty(key) && (merged[key] !== value)) {
                 return false;
             }
@@ -70,54 +89,18 @@ VectorClock.mergeIfConsistent = function(/*clock, ...*/) {
             return true;
         }, this);
     }, this);
-    return isUnified ? new VectorClock(merged) : null;
+    return isUnified ? merged : null;
 };
 
-// ### helper classes
-
-function VectorClockArray() {
-    Array.apply(this, arguments);
-};
-
-inherits(VectorClockArray, Array);
-
-VectorClockArray.prototype.append = function() {
-    this.push.apply(this, arguments);
-    return this;
-};
-
-VectorClockArray.prototype.merge = function() {
-    if (!this.isFull()) {
-        return null;
-    }
-    return VectorClock.mergeIfConsistent.apply(VectorClock, this);
-};
-
-VectorClockArray.prototype.isFull = function() {
+VectorClockArray.prototype.isSparse = function() {
     for (var i = 0, len = this.length; i < len; i += 1) {
-        if (this[i] === undefined) {
-            return false;
+        if (!this.hasOwnProperty(i)) {
+            return true;
         }
     }
-    return true;
+    return false;
 };
 
 VectorClockArray.create = function() {
-    return new VectorClockArray()
+    return new VectorClockArray();
 };
-
-// Create a named valued associated with a vector clock.
-//
-//     key := String
-//     value := Value
-//     clock := VectorClock
-//     return := VersionedValue
-function VersionedValue(key, value, clock) {
-    assert(_.isString, key);
-    assert(isInstance, clock, VectorClock);
-    this.key = key;
-    this.value = value;
-    this.clock = clock;
-}
-
-VersionedValue.prototype.changed = false;

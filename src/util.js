@@ -64,3 +64,38 @@ function isKeys(keys) {
 function isInstance(object, Constructor) {
     return object instanceof Constructor;
 }
+
+function isInteger(number) {
+    return _.isNumber(number) && (Math.floor(number) === number);
+}
+
+function Sequence(initial) {
+    if (isInteger(initial)) {
+        this.current = initial;
+    }
+}
+
+Sequence.prototype.current = 0;
+
+Sequence.prototype.next = function() {
+    var next = this.current;
+    this.current += 1;
+    return next;
+};
+
+// Create a `Handle` for undoing stateful operations by attaching
+// callbacks. Return a `Handle` from a function whose actions can be undone
+// later.
+//
+//     return := Handle
+function Handle() {
+    this.onCancel = $.Callbacks('memory once');
+}
+
+// Call cancel callbacks. They are only called once.
+//
+//     return := this
+Handle.prototype.cancel = function() {
+    this.onCancel.fireWith(this, [this]);
+    return this;
+};
